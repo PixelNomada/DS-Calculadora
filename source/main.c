@@ -10,14 +10,151 @@
 char expresion[MAX_EXPR];
 char resultado[64];
 
-int cursor = 0;
+int cursor_expr = 0;
 double ans = 0.0;
 int error_calculo = 0;
 
 PrintConsole topScreen;
 PrintConsole bottomScreen;
 
-/* Boton actualmente seleccionado con la cruceta */
+
+/* =========================================================
+   TECLADO
+   ========================================================= */
+
+typedef struct {
+    int x;
+    int y;
+    int w;
+    int h;
+
+    const char *label;
+    const char *insert;
+
+    int tipo;
+} Boton;
+
+
+/*
+   NUEVO DISEÑO:
+
+   5 columnas
+   6 filas
+
+   Los botones tienen espacio real entre ellos.
+
+   COLUMNAS:
+   0      1      2      3      4
+
+   FILAS:
+   0  cientifica
+   1  funciones
+   2  7 8 9 DEL AC
+   3  4 5 6 x  /
+   4  1 2 3 +  -
+   5  0 . pi ! =
+
+   Esto hace que la cruceta tenga una rejilla
+   perfectamente predecible.
+*/
+
+
+#define BTN_W 43
+#define BTN_H 25
+
+#define COL0 2
+#define COL1 52
+#define COL2 102
+#define COL3 152
+#define COL4 202
+
+#define ROW0 2
+#define ROW1 33
+#define ROW2 64
+#define ROW3 95
+#define ROW4 126
+#define ROW5 157
+
+
+Boton botones[] = {
+
+    /* =====================================================
+       FILA 0
+       ===================================================== */
+
+    {COL0, ROW0, BTN_W, BTN_H, "SIN",  "sin(",  0},
+    {COL1, ROW0, BTN_W, BTN_H, "COS",  "cos(",  0},
+    {COL2, ROW0, BTN_W, BTN_H, "TAN",  "tan(",  0},
+    {COL3, ROW0, BTN_W, BTN_H, "LOG",  "log(",  0},
+    {COL4, ROW0, BTN_W, BTN_H, "LN",   "ln(",   0},
+
+
+    /* =====================================================
+       FILA 1
+       ===================================================== */
+
+    {COL0, ROW1, BTN_W, BTN_H, "SQRT", "sqrt(", 0},
+    {COL1, ROW1, BTN_W, BTN_H, "X^2",  "^2",    0},
+    {COL2, ROW1, BTN_W, BTN_H, "^",    "^",     0},
+    {COL3, ROW1, BTN_W, BTN_H, "(",    "(",     0},
+    {COL4, ROW1, BTN_W, BTN_H, ")",    ")",     0},
+
+
+    /* =====================================================
+       FILA 2
+       ===================================================== */
+
+    {COL0, ROW2, BTN_W, BTN_H, "7",    "7",     0},
+    {COL1, ROW2, BTN_W, BTN_H, "8",    "8",     0},
+    {COL2, ROW2, BTN_W, BTN_H, "9",    "9",     0},
+    {COL3, ROW2, BTN_W, BTN_H, "DEL",  "",      2},
+    {COL4, ROW2, BTN_W, BTN_H, "AC",   "",      1},
+
+
+    /* =====================================================
+       FILA 3
+       ===================================================== */
+
+    {COL0, ROW3, BTN_W, BTN_H, "4",    "4",     0},
+    {COL1, ROW3, BTN_W, BTN_H, "5",    "5",     0},
+    {COL2, ROW3, BTN_W, BTN_H, "6",    "6",     0},
+    {COL3, ROW3, BTN_W, BTN_H, "X",    "*",     0},
+    {COL4, ROW3, BTN_W, BTN_H, "/",    "/",     0},
+
+
+    /* =====================================================
+       FILA 4
+       ===================================================== */
+
+    {COL0, ROW4, BTN_W, BTN_H, "1",    "1",     0},
+    {COL1, ROW4, BTN_W, BTN_H, "2",    "2",     0},
+    {COL2, ROW4, BTN_W, BTN_H, "3",    "3",     0},
+    {COL3, ROW4, BTN_W, BTN_H, "+",    "+",     0},
+    {COL4, ROW4, BTN_W, BTN_H, "-",    "-",     0},
+
+
+    /* =====================================================
+       FILA 5
+       ===================================================== */
+
+    {COL0, ROW5, BTN_W, BTN_H, "0",    "0",     0},
+    {COL1, ROW5, BTN_W, BTN_H, ".",    ".",     0},
+    {COL2, ROW5, BTN_W, BTN_H, "PI",   "pi",    0},
+    {COL3, ROW5, BTN_W, BTN_H, "!",    "!",     0},
+    {COL4, ROW5, BTN_W, BTN_H, "=",    "",      3}
+};
+
+
+#define NUM_BOTONES \
+    (sizeof(botones) / sizeof(Boton))
+
+
+/*
+   Este índice es independiente de la expresión.
+
+   Sirve para saber qué botón está seleccionado
+   con la cruceta.
+*/
 int boton_seleccionado = 10;
 
 
@@ -25,51 +162,87 @@ int boton_seleccionado = 10;
    PANTALLA SUPERIOR
    ========================================================= */
 
-void actualizar(void) {
+void actualizar(void)
+{
     consoleSelect(&topScreen);
     consoleClear();
 
     printf("\n");
-    printf("   DS SCIENTIFIC CALCULATOR\n");
-    printf("   ========================\n\n");
+    printf(" DS SCIENTIFIC CALCULATOR\n");
+    printf(" ------------------------\n\n");
 
-    printf("   EXPRESION:\n");
-    printf("   %s\n\n", expresion[0] ? expresion : "0");
+    printf(" EXPRESION:\n");
 
-    printf("   RESULTADO:\n");
-    printf("   = %s\n\n", resultado);
+    if (expresion[0] != '\0')
+        printf(" %s\n", expresion);
+    else
+        printf(" 0\n");
 
-    printf("   ANS = %.10g\n", ans);
+    printf("\n");
+
+    printf(" RESULTADO:\n");
+    printf(" = %s\n", resultado);
+
+    printf("\n");
+
+    printf(" ANS = %.10g\n", ans);
+
+    printf("\n");
+
+    if (error_calculo)
+        printf(" ERROR DE CALCULO");
 }
 
 
 /* =========================================================
-   EDICION
+   AGREGAR
    ========================================================= */
 
-void agregar(const char *s) {
+void agregar(const char *s)
+{
     int len = strlen(s);
 
-    if (cursor + len < MAX_EXPR - 1) {
+    if (cursor_expr + len < MAX_EXPR - 1)
+    {
         strcat(expresion, s);
-        cursor += len;
+
+        cursor_expr += len;
+
+        error_calculo = 0;
+
         actualizar();
     }
 }
 
 
-void borrar(void) {
-    if (cursor > 0) {
-        cursor--;
-        expresion[cursor] = '\0';
+/* =========================================================
+   BORRAR
+   ========================================================= */
+
+void borrar(void)
+{
+    if (cursor_expr > 0)
+    {
+        cursor_expr--;
+
+        expresion[cursor_expr] = '\0';
+
+        error_calculo = 0;
+
         actualizar();
     }
 }
 
 
-void limpiar(void) {
+/* =========================================================
+   AC
+   ========================================================= */
+
+void limpiar(void)
+{
     expresion[0] = '\0';
-    cursor = 0;
+
+    cursor_expr = 0;
 
     strcpy(resultado, "0");
 
@@ -83,13 +256,14 @@ void limpiar(void) {
    MATEMATICAS
    ========================================================= */
 
-double deg2rad(double x) {
+double deg2rad(double x)
+{
     return x * M_PI / 180.0;
 }
 
 
-double factorial(double x) {
-
+double factorial(double x)
+{
     int n;
 
     if (x < 0.0 || x > 12.0)
@@ -124,47 +298,44 @@ double parse_funcion(void);
 double parse_primario(void);
 
 
-void saltar_espacios(void) {
-
+void saltar_espacios(void)
+{
     while (*parser_ptr == ' ' ||
-           *parser_ptr == '\t') {
-
+           *parser_ptr == '\t')
+    {
         parser_ptr++;
     }
 }
 
 
 /* =========================================================
-   NUMEROS
+   NUMERO
    ========================================================= */
 
-double parse_numero(void) {
-
+double parse_numero(void)
+{
     char *fin;
     double valor;
 
     saltar_espacios();
 
-    if (strncmp(parser_ptr, "pi", 2) == 0) {
-
+    if (strncmp(parser_ptr, "pi", 2) == 0)
+    {
         parser_ptr += 2;
-
         return M_PI;
     }
 
-    if (strncmp(parser_ptr, "ans", 3) == 0) {
-
+    if (strncmp(parser_ptr, "ans", 3) == 0)
+    {
         parser_ptr += 3;
-
         return ans;
     }
 
     valor = strtod(parser_ptr, &fin);
 
-    if (fin == parser_ptr) {
-
+    if (fin == parser_ptr)
+    {
         error_calculo = 1;
-
         return 0.0;
     }
 
@@ -178,24 +349,23 @@ double parse_numero(void) {
    PARENTESIS
    ========================================================= */
 
-double parse_primario(void) {
-
+double parse_primario(void)
+{
     double valor;
 
     saltar_espacios();
 
-    if (*parser_ptr == '(') {
-
+    if (*parser_ptr == '(')
+    {
         parser_ptr++;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
@@ -209,37 +379,34 @@ double parse_primario(void) {
 
 
 /* =========================================================
-   FUNCIONES CIENTIFICAS
+   FUNCIONES
    ========================================================= */
 
-double parse_funcion(void) {
-
+double parse_funcion(void)
+{
     double valor;
 
     saltar_espacios();
 
-
-    if (strncmp(parser_ptr, "sqrt(", 5) == 0) {
-
+    if (strncmp(parser_ptr, "sqrt(", 5) == 0)
+    {
         parser_ptr += 5;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
         parser_ptr++;
 
-        if (valor < 0.0) {
-
+        if (valor < 0.0)
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
@@ -247,18 +414,17 @@ double parse_funcion(void) {
     }
 
 
-    if (strncmp(parser_ptr, "sin(", 4) == 0) {
-
+    if (strncmp(parser_ptr, "sin(", 4) == 0)
+    {
         parser_ptr += 4;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
@@ -268,18 +434,17 @@ double parse_funcion(void) {
     }
 
 
-    if (strncmp(parser_ptr, "cos(", 4) == 0) {
-
+    if (strncmp(parser_ptr, "cos(", 4) == 0)
+    {
         parser_ptr += 4;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
@@ -289,18 +454,17 @@ double parse_funcion(void) {
     }
 
 
-    if (strncmp(parser_ptr, "tan(", 4) == 0) {
-
+    if (strncmp(parser_ptr, "tan(", 4) == 0)
+    {
         parser_ptr += 4;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
@@ -310,27 +474,25 @@ double parse_funcion(void) {
     }
 
 
-    if (strncmp(parser_ptr, "log(", 4) == 0) {
-
+    if (strncmp(parser_ptr, "log(", 4) == 0)
+    {
         parser_ptr += 4;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
         parser_ptr++;
 
-        if (valor <= 0.0) {
-
+        if (valor <= 0.0)
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
@@ -338,100 +500,90 @@ double parse_funcion(void) {
     }
 
 
-    if (strncmp(parser_ptr, "ln(", 3) == 0) {
-
+    if (strncmp(parser_ptr, "ln(", 3) == 0)
+    {
         parser_ptr += 3;
 
         valor = parse_suma();
 
         saltar_espacios();
 
-        if (*parser_ptr != ')') {
-
+        if (*parser_ptr != ')')
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
         parser_ptr++;
 
-        if (valor <= 0.0) {
-
+        if (valor <= 0.0)
+        {
             error_calculo = 1;
-
             return 0.0;
         }
 
         return log(valor);
     }
 
-
     return parse_primario();
 }
 
 
 /* =========================================================
-   FACTORIAL / PORCENTAJE
+   POSTFIJO
    ========================================================= */
 
-double parse_postfijo(void) {
-
+double parse_postfijo(void)
+{
     double valor = parse_funcion();
 
-    while (1) {
-
+    while (1)
+    {
         saltar_espacios();
 
-        if (*parser_ptr == '!') {
-
+        if (*parser_ptr == '!')
+        {
             parser_ptr++;
 
             valor = factorial(valor);
 
-            if (isnan(valor)) {
-
+            if (isnan(valor))
+            {
                 error_calculo = 1;
-
                 return 0.0;
             }
         }
-
-        else if (*parser_ptr == '%') {
-
+        else if (*parser_ptr == '%')
+        {
             parser_ptr++;
 
             valor /= 100.0;
         }
-
-        else {
-
+        else
+        {
             break;
         }
     }
 
     return valor;
 }
-
-
 /* =========================================================
-   SIGNOS
+   UNARIO
    ========================================================= */
 
-double parse_unario(void) {
-
+double parse_unario(void)
+{
     saltar_espacios();
 
-    if (*parser_ptr == '+') {
-
+    if (*parser_ptr == '+')
+    {
         parser_ptr++;
-
         return parse_unario();
     }
 
-    if (*parser_ptr == '-') {
-
+    if (*parser_ptr == '-')
+    {
         parser_ptr++;
-
         return -parse_unario();
     }
 
@@ -443,8 +595,8 @@ double parse_unario(void) {
    POTENCIA
    ========================================================= */
 
-double parse_potencia(void) {
-
+double parse_potencia(void)
+{
     double izquierda;
     double derecha;
 
@@ -452,8 +604,8 @@ double parse_potencia(void) {
 
     saltar_espacios();
 
-    if (*parser_ptr == '^') {
-
+    if (*parser_ptr == '^')
+    {
         parser_ptr++;
 
         derecha = parse_potencia();
@@ -469,44 +621,41 @@ double parse_potencia(void) {
    MULTIPLICACION / DIVISION
    ========================================================= */
 
-double parse_producto(void) {
-
+double parse_producto(void)
+{
     double resultado_local;
     double valor;
 
     resultado_local = parse_potencia();
 
-    while (!error_calculo) {
-
+    while (!error_calculo)
+    {
         saltar_espacios();
 
-        if (*parser_ptr == '*') {
-
+        if (*parser_ptr == '*')
+        {
             parser_ptr++;
 
             valor = parse_potencia();
 
             resultado_local *= valor;
         }
-
-        else if (*parser_ptr == '/') {
-
+        else if (*parser_ptr == '/')
+        {
             parser_ptr++;
 
             valor = parse_potencia();
 
-            if (fabs(valor) < 0.000000000001) {
-
+            if (fabs(valor) < 0.000000000001)
+            {
                 error_calculo = 1;
-
                 return 0.0;
             }
 
             resultado_local /= valor;
         }
-
-        else {
-
+        else
+        {
             break;
         }
     }
@@ -519,53 +668,53 @@ double parse_producto(void) {
    SUMA / RESTA
    ========================================================= */
 
-double parse_suma(void) {
-
+double parse_suma(void)
+{
     double resultado_local;
     double valor;
 
     resultado_local = parse_producto();
 
-    while (!error_calculo) {
-
+    while (!error_calculo)
+    {
         saltar_espacios();
 
-        if (*parser_ptr == '+') {
-
+        if (*parser_ptr == '+')
+        {
             parser_ptr++;
 
             valor = parse_producto();
 
             resultado_local += valor;
         }
-
-        else if (*parser_ptr == '-') {
-
+        else if (*parser_ptr == '-')
+        {
             parser_ptr++;
 
             valor = parse_producto();
 
             resultado_local -= valor;
         }
-
-        else {
-
+        else
+        {
             break;
         }
     }
 
     return resultado_local;
 }
+
+
 /* =========================================================
    CALCULAR
    ========================================================= */
 
-void calcular(void) {
-
+void calcular(void)
+{
     double r;
 
-    if (expresion[0] == '\0') {
-
+    if (expresion[0] == '\0')
+    {
         strcpy(resultado, "0");
 
         actualizar();
@@ -588,13 +737,12 @@ void calcular(void) {
         error_calculo = 1;
 
 
-    if (error_calculo) {
-
+    if (error_calculo)
+    {
         strcpy(resultado, "ERROR");
     }
-
-    else {
-
+    else
+    {
         ans = r;
 
         snprintf(
@@ -605,183 +753,136 @@ void calcular(void) {
         );
     }
 
+
     expresion[0] = '\0';
 
-    cursor = 0;
+    cursor_expr = 0;
 
     actualizar();
 }
 
 
 /* =========================================================
-   BOTONES
+   DIBUJAR BOTONES
    ========================================================= */
 
-typedef struct {
+void dibujar_boton(int indice)
+{
+    Boton *b = &botones[indice];
 
-    int x;
-    int y;
-    int w;
-    int h;
+    int col;
+    int fila;
 
-    const char *label;
-    const char *insert;
+    /*
+       Convertimos las coordenadas en caracteres.
 
-    int tipo;
+       Cada botón ocupa aproximadamente 6 caracteres.
+       Así quedan separados visualmente.
+    */
 
-} Boton;
+    col = 1 + (b->x / 8);
 
-
-/*
-   IMPORTANTE:
-
-   Los botones estan organizados en 6 filas
-   y 5 columnas.
-
-   Esto permite que la cruceta pueda navegar
-   perfectamente entre ellos.
-*/
-
-Boton botones[] = {
-
-    /* FILA 0 */
-
-    {  2,   4, 45, 26, "sin",  "sin(",  0 },
-    { 53,   4, 45, 26, "cos",  "cos(",  0 },
-    {104,   4, 45, 26, "tan",  "tan(",  0 },
-    {155,   4, 45, 26, "log",  "log(",  0 },
-    {206,   4, 45, 26, "ln",   "ln(",   0 },
+    fila = 2 + (b->y / 8);
 
 
-    /* FILA 1 */
+    /*
+       Botón seleccionado:
+       << NUM >>
+    */
 
-    {  2,  34, 45, 26, "x^2",  "^2",    0 },
-    { 53,  34, 45, 26, "sqrt", "sqrt(", 0 },
-    {104,  34, 45, 26, "^",    "^",     0 },
-    {155,  34, 45, 26, "(",    "(",     0 },
-    {206,  34, 45, 26, ")",    ")",     0 },
-
-
-    /* FILA 2 */
-
-    {  2,  64, 45, 28, "7",   "7",   0 },
-    { 53,  64, 45, 28, "8",   "8",   0 },
-    {104,  64, 45, 28, "9",   "9",   0 },
-    {155,  64, 45, 28, "DEL", "",    2 },
-    {206,  64, 45, 28, "AC",  "",    1 },
-
-
-    /* FILA 3 */
-
-    {  2,  96, 45, 28, "4", "4", 0 },
-    { 53,  96, 45, 28, "5", "5", 0 },
-    {104,  96, 45, 28, "6", "6", 0 },
-    {155,  96, 45, 28, "x", "*", 0 },
-    {206,  96, 45, 28, "/", "/", 0 },
-
-
-    /* FILA 4 */
-
-    {  2, 128, 45, 28, "1", "1", 0 },
-    { 53, 128, 45, 28, "2", "2", 0 },
-    {104, 128, 45, 28, "3", "3", 0 },
-    {155, 128, 45, 28, "+", "+", 0 },
-    {206, 128, 45, 28, "-", "-", 0 },
-
-
-    /* FILA 5 */
-
-    {  2, 160, 45, 28, "0",  "0",  0 },
-    { 53, 160, 45, 28, ".",  ".",  0 },
-    {104, 160, 45, 28, "pi", "pi", 0 },
-    {155, 160, 45, 28, "!",  "!",  0 },
-    {206, 160, 45, 28, "=",  "",   3 }
-};
-
-
-#define NUM_BOTONES \
-    (sizeof(botones) / sizeof(Boton))
-
-
-/* =========================================================
-   DIBUJAR TECLADO
-   ========================================================= */
-
-void dibujar_teclado(void) {
-
-    consoleSelect(&bottomScreen);
-
-    consoleClear();
-
-    printf("\n");
-
-    printf("       CALCULADORA\n");
-
-    printf("  ---------------------------\n\n");
-
-
-    for (int i = 0; i < NUM_BOTONES; i++) {
-
-        Boton *b = &botones[i];
-
-        int fila = 5 + (b->y / 30);
-
-        int col = 1 + (b->x / 8);
-
-
-        /*
-           El boton seleccionado por la cruceta
-           aparece con una flecha.
-        */
-
-        if (i == boton_seleccionado) {
-
-            printf(
-                "\x1b[%d;%dH>%s",
-                fila,
-                col,
-                b->label
-            );
-        }
-
-        else {
-
-            printf(
-                "\x1b[%d;%dH %s",
-                fila,
-                col,
-                b->label
-            );
-        }
+    if (indice == boton_seleccionado)
+    {
+        printf(
+            "\x1b[%d;%dH<%s>",
+            fila,
+            col,
+            b->label
+        );
     }
-
-
-    printf("\n\n");
-
-    printf(" CRUCETA = MOVER\n");
-    printf(" START = SELECCIONAR\n");
-    printf(" A = CALCULAR\n");
-    printf(" B = BORRAR\n");
-    printf(" X = AC\n");
-    printf(" SELECT = SALIR");
+    else
+    {
+        printf(
+            "\x1b[%d;%dH %s ",
+            fila,
+            col,
+            b->label
+        );
+    }
 }
 
 
 /* =========================================================
-   DETECTAR BOTON TACTIL
+   DIBUJAR TECLADO COMPLETO
    ========================================================= */
 
-int detectar_boton(int tx, int ty) {
+void dibujar_teclado(void)
+{
+    consoleSelect(&bottomScreen);
 
-    for (int i = 0; i < NUM_BOTONES; i++) {
+    consoleClear();
 
+
+    printf("\n");
+
+    printf("   CALCULADORA CIENTIFICA");
+
+    printf("\n\n");
+
+
+    /*
+       Dibujar los 30 botones.
+    */
+
+    for (int i = 0; i < NUM_BOTONES; i++)
+    {
+        dibujar_boton(i);
+    }
+
+
+    /*
+       Información inferior.
+    */
+
+    printf("\x1b[22;1H");
+
+    printf("CRUCETA: MOVER");
+
+    printf("\x1b[23;1H");
+
+    printf("START: PULSAR");
+
+    printf("\x1b[24;1H");
+
+    printf("A=CALC  B=DEL  X=AC");
+
+    printf("\x1b[25;1H");
+
+    printf("SELECT=SALIR");
+}
+
+
+/* =========================================================
+   DETECTAR TOUCH
+   ========================================================= */
+
+int detectar_boton(int tx, int ty)
+{
+    for (int i = 0; i < NUM_BOTONES; i++)
+    {
         Boton *b = &botones[i];
 
-        if (tx >= b->x &&
-            tx < b->x + b->w &&
-            ty >= b->y &&
-            ty < b->y + b->h) {
+        /*
+           La zona tactil es exactamente la zona
+           del botón más un pequeño margen.
+        */
 
+        int margen = 2;
+
+        if (tx >= b->x - margen &&
+            tx < b->x + b->w + margen &&
+            ty >= b->y - margen &&
+            ty < b->y + b->h + margen)
+        {
             return i;
         }
     }
@@ -794,131 +895,112 @@ int detectar_boton(int tx, int ty) {
    PROCESAR BOTON
    ========================================================= */
 
-void procesar_boton(int idx) {
-
-    if (idx < 0)
+void procesar_boton(int indice)
+{
+    if (indice < 0 ||
+        indice >= NUM_BOTONES)
         return;
 
 
-    Boton *b = &botones[idx];
+    Boton *b = &botones[indice];
 
 
-    switch (b->tipo) {
-
-        case 1:
-
-            limpiar();
-
-            break;
-
-
-        case 2:
-
-            borrar();
-
-            break;
-
-
-        case 3:
-
-            calcular();
-
-            break;
-
-
-        default:
-
-            if (b->insert != NULL &&
-                b->insert[0] != '\0') {
-
-                agregar(b->insert);
-            }
-
-            break;
+    if (b->tipo == 1)
+    {
+        limpiar();
+    }
+    else if (b->tipo == 2)
+    {
+        borrar();
+    }
+    else if (b->tipo == 3)
+    {
+        calcular();
+    }
+    else
+    {
+        if (b->insert != NULL &&
+            b->insert[0] != '\0')
+        {
+            agregar(b->insert);
+        }
     }
 }
 
 
 /* =========================================================
-   NAVEGACION CON CRUCETA
+   MOVER SELECCION
    ========================================================= */
 
-void mover_arriba(void) {
-
+void mover_arriba(void)
+{
     int fila = boton_seleccionado / 5;
     int col  = boton_seleccionado % 5;
-
 
     if (fila > 0)
         fila--;
     else
         fila = 5;
 
-
     boton_seleccionado =
         fila * 5 + col;
 }
 
 
-void mover_abajo(void) {
-
+void mover_abajo(void)
+{
     int fila = boton_seleccionado / 5;
     int col  = boton_seleccionado % 5;
-
 
     if (fila < 5)
         fila++;
     else
         fila = 0;
 
-
     boton_seleccionado =
         fila * 5 + col;
 }
 
 
-void mover_izquierda(void) {
-
+void mover_izquierda(void)
+{
     int fila = boton_seleccionado / 5;
     int col  = boton_seleccionado % 5;
-
 
     if (col > 0)
         col--;
     else
         col = 4;
 
-
     boton_seleccionado =
         fila * 5 + col;
 }
 
 
-void mover_derecha(void) {
-
+void mover_derecha(void)
+{
     int fila = boton_seleccionado / 5;
     int col  = boton_seleccionado % 5;
-
 
     if (col < 4)
         col++;
     else
         col = 0;
 
-
     boton_seleccionado =
         fila * 5 + col;
 }
-
 /* =========================================================
    MAIN
    ========================================================= */
 
-int main(void) {
-
-    /* -----------------------------------------------------
+int main(void)
+{
+    /*
+       -----------------------------------------------------
        VIDEO
-       ----------------------------------------------------- */
+       -----------------------------------------------------
+    */
 
     videoSetMode(MODE_0_2D);
 
@@ -930,9 +1012,11 @@ int main(void) {
     vramSetBankC(VRAM_C_SUB_BG);
 
 
-    /* -----------------------------------------------------
-       CONSOLA SUPERIOR
-       ----------------------------------------------------- */
+    /*
+       -----------------------------------------------------
+       PANTALLA SUPERIOR
+       -----------------------------------------------------
+    */
 
     consoleInit(
         &topScreen,
@@ -946,9 +1030,11 @@ int main(void) {
     );
 
 
-    /* -----------------------------------------------------
-       CONSOLA INFERIOR
-       ----------------------------------------------------- */
+    /*
+       -----------------------------------------------------
+       PANTALLA INFERIOR
+       -----------------------------------------------------
+    */
 
     consoleInit(
         &bottomScreen,
@@ -962,45 +1048,51 @@ int main(void) {
     );
 
 
-    /* -----------------------------------------------------
+    /*
+       -----------------------------------------------------
        ESTADO INICIAL
-       ----------------------------------------------------- */
+       -----------------------------------------------------
+    */
 
     expresion[0] = '\0';
 
-    cursor = 0;
+    cursor_expr = 0;
 
     ans = 0.0;
 
     error_calculo = 0;
+
+    /*
+       Empieza seleccionado el 7.
+    */
 
     boton_seleccionado = 10;
 
     strcpy(resultado, "0");
 
 
-    /* -----------------------------------------------------
-       MOSTRAR
-       ----------------------------------------------------- */
-
     actualizar();
 
     dibujar_teclado();
 
 
-    /* -----------------------------------------------------
+    /*
+       -----------------------------------------------------
        TOUCH
-       ----------------------------------------------------- */
+       -----------------------------------------------------
+    */
 
     touchPosition touch;
 
 
-    /* -----------------------------------------------------
+    /*
+       -----------------------------------------------------
        BUCLE PRINCIPAL
-       ----------------------------------------------------- */
+       -----------------------------------------------------
+    */
 
-    while (1) {
-
+    while (1)
+    {
         swiWaitForVBlank();
 
         scanKeys();
@@ -1012,8 +1104,8 @@ int main(void) {
            CRUCETA ARRIBA
            ================================================ */
 
-        if (keys & KEY_UP) {
-
+        if (keys & KEY_UP)
+        {
             mover_arriba();
 
             dibujar_teclado();
@@ -1024,8 +1116,8 @@ int main(void) {
            CRUCETA ABAJO
            ================================================ */
 
-        if (keys & KEY_DOWN) {
-
+        if (keys & KEY_DOWN)
+        {
             mover_abajo();
 
             dibujar_teclado();
@@ -1036,8 +1128,8 @@ int main(void) {
            CRUCETA IZQUIERDA
            ================================================ */
 
-        if (keys & KEY_LEFT) {
-
+        if (keys & KEY_LEFT)
+        {
             mover_izquierda();
 
             dibujar_teclado();
@@ -1048,8 +1140,8 @@ int main(void) {
            CRUCETA DERECHA
            ================================================ */
 
-        if (keys & KEY_RIGHT) {
-
+        if (keys & KEY_RIGHT)
+        {
             mover_derecha();
 
             dibujar_teclado();
@@ -1057,11 +1149,11 @@ int main(void) {
 
 
         /* ================================================
-           START = SELECCIONAR BOTON
+           START = PULSAR BOTON SELECCIONADO
            ================================================ */
 
-        if (keys & KEY_START) {
-
+        if (keys & KEY_START)
+        {
             procesar_boton(
                 boton_seleccionado
             );
@@ -1074,8 +1166,8 @@ int main(void) {
            A = CALCULAR
            ================================================ */
 
-        if (keys & KEY_A) {
-
+        if (keys & KEY_A)
+        {
             calcular();
 
             dibujar_teclado();
@@ -1086,8 +1178,8 @@ int main(void) {
            B = BORRAR
            ================================================ */
 
-        if (keys & KEY_B) {
-
+        if (keys & KEY_B)
+        {
             borrar();
 
             dibujar_teclado();
@@ -1098,8 +1190,8 @@ int main(void) {
            X = AC
            ================================================ */
 
-        if (keys & KEY_X) {
-
+        if (keys & KEY_X)
+        {
             limpiar();
 
             dibujar_teclado();
@@ -1110,39 +1202,39 @@ int main(void) {
            SELECT = SALIR
            ================================================ */
 
-        if (keys & KEY_SELECT) {
-
+        if (keys & KEY_SELECT)
+        {
             break;
         }
 
 
         /* ================================================
-           PANTALLA TACTIL
+           TOUCH
            ================================================ */
 
-        if (keys & KEY_TOUCH) {
-
+        if (keys & KEY_TOUCH)
+        {
             touchRead(&touch);
 
 
-            int idx =
+            int indice =
                 detectar_boton(
                     touch.px,
                     touch.py
                 );
 
 
-            if (idx >= 0) {
-
+            if (indice >= 0)
+            {
                 /*
-                   Si tocas un boton, también hacemos
-                   que ese sea el seleccionado.
+                   Al tocar un botón también se mueve
+                   el selector a ese botón.
                 */
 
-                boton_seleccionado = idx;
+                boton_seleccionado = indice;
 
 
-                procesar_boton(idx);
+                procesar_boton(indice);
 
 
                 dibujar_teclado();
@@ -1150,10 +1242,6 @@ int main(void) {
         }
     }
 
-
-    /* -----------------------------------------------------
-       SALIR
-       ----------------------------------------------------- */
 
     return 0;
 }
