@@ -6,42 +6,37 @@
 #include <ctype.h>
 
 #define MAX_EXPR 48
-#define MAX_RESULT 64
 
 char expresion[MAX_EXPR];
-char resultado[MAX_RESULT];
+char resultado[64];
 
 int cursor = 0;
-
-/* Ultimo resultado */
 double ultimo_resultado = 0.0;
 
-/* Consolas */
 PrintConsole topScreen;
 PrintConsole bottomScreen;
 
 
 /* =========================================================
-   UTILIDADES
+   PANTALLA SUPERIOR
    ========================================================= */
 
 void actualizar(void) {
+
     consoleSelect(&topScreen);
     consoleClear();
 
     printf("\n");
-    printf("  DS SCIENTIFIC CALCULATOR\n");
-    printf("  ========================\n\n");
+    printf("  DS CALCULADORA CIENTIFICA\n");
+    printf("  -------------------------\n\n");
 
-    printf("  EXPRESION\n");
-    printf("  %s\n", expresion[0] ? expresion : "0");
+    printf("  EXPRESION:\n");
+    printf("  %s\n\n", expresion[0] ? expresion : "0");
 
-    printf("\n");
-    printf("  RESULTADO\n");
-    printf("  %s\n", resultado);
+    printf("  RESULTADO:\n");
+    printf("  = %s\n\n", resultado);
 
-    printf("\n");
-    printf("  DEG | A=CALC B=DEL X=AC\n");
+    printf("  ANGULO: GRADOS\n");
 }
 
 
@@ -49,11 +44,13 @@ void actualizar(void) {
    AGREGAR
    ========================================================= */
 
-void agregar(const char *s) {
-    int len = strlen(s);
+void agregar(const char *texto) {
+
+    int len = strlen(texto);
 
     if (cursor + len < MAX_EXPR) {
-        strcat(expresion, s);
+
+        strcat(expresion, texto);
         cursor += len;
 
         strcpy(resultado, expresion);
@@ -68,7 +65,9 @@ void agregar(const char *s) {
    ========================================================= */
 
 void borrar(void) {
+
     if (cursor > 0) {
+
         cursor--;
 
         expresion[cursor] = '\0';
@@ -88,6 +87,7 @@ void borrar(void) {
    ========================================================= */
 
 void limpiar(void) {
+
     expresion[0] = '\0';
 
     cursor = 0;
@@ -104,74 +104,31 @@ void limpiar(void) {
    GRADOS A RADIANES
    ========================================================= */
 
-double deg2rad(double x) {
-    return x * M_PI / 180.0;
+double deg2rad(double grados) {
+
+    return grados * M_PI / 180.0;
 }
 
 
 /* =========================================================
-   PARSER MATEMATICO
+   PARSER
    ========================================================= */
 
-/*
-   Esta parte reemplaza al evaluador antiguo.
-
-   Orden:
-
-   expresion
-      |
-      v
-   suma/resta
-      |
-      v
-   multiplicacion/division
-      |
-      v
-   potencia
-      |
-      v
-   unario
-      |
-      v
-   factorial
-      |
-      v
-   funciones
-      |
-      v
-   parentesis/numeros
-*/
-
-
-const char *parser_ptr;
-int parser_error = 0;
+const char *posicion;
+int error_calculo;
 
 
 /* ---------------------------------------------------------
    Saltar espacios
    --------------------------------------------------------- */
 
-void saltar_espacios(void) {
-    while (*parser_ptr == ' ' ||
-           *parser_ptr == '\t') {
-        parser_ptr++;
+void espacios(void) {
+
+    while (*posicion == ' ' ||
+           *posicion == '\t') {
+
+        posicion++;
     }
-}
-
-
-/* ---------------------------------------------------------
-   Funciones auxiliares
-   --------------------------------------------------------- */
-
-int coincide(const char *texto) {
-    int len = strlen(texto);
-
-    if (strncmp(parser_ptr, texto, len) == 0) {
-        parser_ptr += len;
-        return 1;
-    }
-
-    return 0;
 }
 
 
@@ -180,163 +137,122 @@ int coincide(const char *texto) {
    --------------------------------------------------------- */
 
 double parse_suma(void);
-double parse_multiplicacion(void);
+double parse_producto(void);
 double parse_potencia(void);
 double parse_unario(void);
 double parse_postfijo(void);
-double parse_principal(void);
+double parse_primario(void);
 
 
-/* ---------------------------------------------------------
-   Factorial
-   --------------------------------------------------------- */
+/* =========================================================
+   PRIMARIO
+   ========================================================= */
 
-double factorial(double x) {
+double parse_primario(void) {
 
-    if (x < 0.0) {
-        parser_error = 1;
-        return 0.0;
-    }
-
-    /*
-       Permitimos factorial de enteros.
-    */
-
-    double redondeado = floor(x + 0.0000001);
-
-    if (fabs(x - redondeado) > 0.000001) {
-        parser_error = 1;
-        return 0.0;
-    }
-
-    if (redondeado > 170.0) {
-        parser_error = 1;
-        return 0.0;
-    }
-
-    double r = 1.0;
-
-    for (int i = 2; i <= (int)redondeado; i++) {
-        r *= i;
-    }
-
-    return r;
-}
+    espacios();
 
 
-/* ---------------------------------------------------------
-   NUMERO / PARENTESIS / FUNCIONES
-   --------------------------------------------------------- */
-
-double parse_principal(void) {
-
-    saltar_espacios();
-
-
-    /* ---------------------------------------------
+    /* -----------------------------------------
        Parentesis
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (*parser_ptr == '(') {
+    if (*posicion == '(') {
 
-        parser_ptr++;
+        double valor;
 
-        double valor = parse_suma();
+        posicion++;
 
-        saltar_espacios();
+        valor = parse_suma();
 
-        if (*parser_ptr == ')') {
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == ')') {
+
+            posicion++;
+
         } else {
-            parser_error = 1;
+
+            error_calculo = 1;
         }
 
         return valor;
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        Numero
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if ((*parser_ptr >= '0' && *parser_ptr <= '9') ||
-        *parser_ptr == '.') {
+    if ((*posicion >= '0' &&
+         *posicion <= '9') ||
+        *posicion == '.') {
 
         char *fin;
 
-        double valor = strtod(parser_ptr, &fin);
+        double valor = strtod(posicion, &fin);
 
-        if (fin == parser_ptr) {
-            parser_error = 1;
+        if (fin == posicion) {
+
+            error_calculo = 1;
+
             return 0.0;
         }
 
-        parser_ptr = fin;
+        posicion = fin;
 
         return valor;
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        PI
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "pi", 2) == 0) {
+    if (strncmp(posicion, "pi", 2) == 0) {
 
-        parser_ptr += 2;
+        posicion += 2;
 
         return M_PI;
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        ANS
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "ans", 3) == 0) {
+    if (strncmp(posicion, "ans", 3) == 0) {
 
-        parser_ptr += 3;
+        posicion += 3;
 
         return ultimo_resultado;
     }
 
 
-    /* ---------------------------------------------
-       E
-       --------------------------------------------- */
-
-    if (*parser_ptr == 'e') {
-
-        parser_ptr++;
-
-        return M_E;
-    }
-
-
-    /* ---------------------------------------------
+    /* -----------------------------------------
        SIN
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "sin", 3) == 0) {
-
-        parser_ptr += 3;
-
-        saltar_espacios();
+    if (strncmp(posicion, "sin", 3) == 0) {
 
         double valor;
 
-        if (*parser_ptr == '(') {
+        posicion += 3;
 
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == '(') {
+
+            posicion++;
 
             valor = parse_suma();
 
-            saltar_espacios();
+            espacios();
 
-            if (*parser_ptr == ')')
-                parser_ptr++;
+            if (*posicion == ')')
+                posicion++;
             else
-                parser_error = 1;
+                error_calculo = 1;
 
         } else {
 
@@ -347,30 +263,30 @@ double parse_principal(void) {
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        COS
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "cos", 3) == 0) {
-
-        parser_ptr += 3;
-
-        saltar_espacios();
+    if (strncmp(posicion, "cos", 3) == 0) {
 
         double valor;
 
-        if (*parser_ptr == '(') {
+        posicion += 3;
 
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == '(') {
+
+            posicion++;
 
             valor = parse_suma();
 
-            saltar_espacios();
+            espacios();
 
-            if (*parser_ptr == ')')
-                parser_ptr++;
+            if (*posicion == ')')
+                posicion++;
             else
-                parser_error = 1;
+                error_calculo = 1;
 
         } else {
 
@@ -381,30 +297,30 @@ double parse_principal(void) {
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        TAN
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "tan", 3) == 0) {
-
-        parser_ptr += 3;
-
-        saltar_espacios();
+    if (strncmp(posicion, "tan", 3) == 0) {
 
         double valor;
 
-        if (*parser_ptr == '(') {
+        posicion += 3;
 
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == '(') {
+
+            posicion++;
 
             valor = parse_suma();
 
-            saltar_espacios();
+            espacios();
 
-            if (*parser_ptr == ')')
-                parser_ptr++;
+            if (*posicion == ')')
+                posicion++;
             else
-                parser_error = 1;
+                error_calculo = 1;
 
         } else {
 
@@ -415,30 +331,30 @@ double parse_principal(void) {
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        SQRT
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "sqrt", 4) == 0) {
-
-        parser_ptr += 4;
-
-        saltar_espacios();
+    if (strncmp(posicion, "sqrt", 4) == 0) {
 
         double valor;
 
-        if (*parser_ptr == '(') {
+        posicion += 4;
 
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == '(') {
+
+            posicion++;
 
             valor = parse_suma();
 
-            saltar_espacios();
+            espacios();
 
-            if (*parser_ptr == ')')
-                parser_ptr++;
+            if (*posicion == ')')
+                posicion++;
             else
-                parser_error = 1;
+                error_calculo = 1;
 
         } else {
 
@@ -446,7 +362,9 @@ double parse_principal(void) {
         }
 
         if (valor < 0.0) {
-            parser_error = 1;
+
+            error_calculo = 1;
+
             return 0.0;
         }
 
@@ -454,30 +372,30 @@ double parse_principal(void) {
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        LOG
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "log", 3) == 0) {
-
-        parser_ptr += 3;
-
-        saltar_espacios();
+    if (strncmp(posicion, "log", 3) == 0) {
 
         double valor;
 
-        if (*parser_ptr == '(') {
+        posicion += 3;
 
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == '(') {
+
+            posicion++;
 
             valor = parse_suma();
 
-            saltar_espacios();
+            espacios();
 
-            if (*parser_ptr == ')')
-                parser_ptr++;
+            if (*posicion == ')')
+                posicion++;
             else
-                parser_error = 1;
+                error_calculo = 1;
 
         } else {
 
@@ -485,7 +403,9 @@ double parse_principal(void) {
         }
 
         if (valor <= 0.0) {
-            parser_error = 1;
+
+            error_calculo = 1;
+
             return 0.0;
         }
 
@@ -493,30 +413,30 @@ double parse_principal(void) {
     }
 
 
-    /* ---------------------------------------------
+    /* -----------------------------------------
        LN
-       --------------------------------------------- */
+       ----------------------------------------- */
 
-    if (strncmp(parser_ptr, "ln", 2) == 0) {
-
-        parser_ptr += 2;
-
-        saltar_espacios();
+    if (strncmp(posicion, "ln", 2) == 0) {
 
         double valor;
 
-        if (*parser_ptr == '(') {
+        posicion += 2;
 
-            parser_ptr++;
+        espacios();
+
+        if (*posicion == '(') {
+
+            posicion++;
 
             valor = parse_suma();
 
-            saltar_espacios();
+            espacios();
 
-            if (*parser_ptr == ')')
-                parser_ptr++;
+            if (*posicion == ')')
+                posicion++;
             else
-                parser_error = 1;
+                error_calculo = 1;
 
         } else {
 
@@ -524,7 +444,9 @@ double parse_principal(void) {
         }
 
         if (valor <= 0.0) {
-            parser_error = 1;
+
+            error_calculo = 1;
+
             return 0.0;
         }
 
@@ -532,38 +454,54 @@ double parse_principal(void) {
     }
 
 
-    parser_error = 1;
+    error_calculo = 1;
 
     return 0.0;
 }
 
 
-/* ---------------------------------------------------------
+/* =========================================================
    POSTFIJO
-   --------------------------------------------------------- */
+   ========================================================= */
 
 double parse_postfijo(void) {
 
-    double valor = parse_principal();
+    double valor = parse_primario();
 
-    while (!parser_error) {
+    while (!error_calculo) {
 
-        saltar_espacios();
+        espacios();
 
-        if (*parser_ptr == '!') {
+        /* Factorial */
 
-            parser_ptr++;
+        if (*posicion == '!') {
 
-            valor = factorial(valor);
+            posicion++;
 
+            if (valor < 0.0 ||
+                valor > 170.0 ||
+                floor(valor) != valor) {
+
+                error_calculo = 1;
+
+                return 0.0;
+            }
+
+            double factorial = 1.0;
+
+            for (int i = 2; i <= (int)valor; i++)
+                factorial *= i;
+
+            valor = factorial;
         }
 
-        else if (*parser_ptr == '%') {
+        /* Porcentaje */
 
-            parser_ptr++;
+        else if (*posicion == '%') {
 
-            valor = valor / 100.0;
+            posicion++;
 
+            valor /= 100.0;
         }
 
         else {
@@ -576,24 +514,24 @@ double parse_postfijo(void) {
 }
 
 
-/* ---------------------------------------------------------
+/* =========================================================
    UNARIO
-   --------------------------------------------------------- */
+   ========================================================= */
 
 double parse_unario(void) {
 
-    saltar_espacios();
+    espacios();
 
-    if (*parser_ptr == '+') {
+    if (*posicion == '+') {
 
-        parser_ptr++;
+        posicion++;
 
         return parse_unario();
     }
 
-    if (*parser_ptr == '-') {
+    if (*posicion == '-') {
 
-        parser_ptr++;
+        posicion++;
 
         return -parse_unario();
     }
@@ -602,21 +540,25 @@ double parse_unario(void) {
 }
 
 
-/* ---------------------------------------------------------
-   POTENCIA
-   --------------------------------------------------------- */
+/* =========================================================
+   POTENCIAS
+   ========================================================= */
 
 double parse_potencia(void) {
 
-    double izquierda = parse_unario();
+    double izquierda;
 
-    saltar_espacios();
+    izquierda = parse_unario();
 
-    if (*parser_ptr == '^') {
+    espacios();
 
-        parser_ptr++;
+    if (*posicion == '^') {
 
-        double derecha = parse_potencia();
+        double derecha;
+
+        posicion++;
+
+        derecha = parse_potencia();
 
         izquierda = pow(izquierda, derecha);
     }
@@ -625,34 +567,38 @@ double parse_potencia(void) {
 }
 
 
-/* ---------------------------------------------------------
-   MULTIPLICACION / DIVISION
-   --------------------------------------------------------- */
+/* =========================================================
+   MULTIPLICACION Y DIVISION
+   ========================================================= */
 
-double parse_multiplicacion(void) {
+double parse_producto(void) {
 
-    double valor = parse_potencia();
+    double valor;
 
-    while (!parser_error) {
+    valor = parse_potencia();
 
-        saltar_espacios();
+    while (!error_calculo) {
 
-        if (*parser_ptr == '*') {
+        espacios();
 
-            parser_ptr++;
+        if (*posicion == '*') {
+
+            posicion++;
 
             valor *= parse_potencia();
         }
 
-        else if (*parser_ptr == '/') {
+        else if (*posicion == '/') {
 
-            parser_ptr++;
+            double divisor;
 
-            double divisor = parse_potencia();
+            posicion++;
+
+            divisor = parse_potencia();
 
             if (fabs(divisor) < 0.000000000001) {
 
-                parser_error = 1;
+                error_calculo = 1;
 
                 return 0.0;
             }
@@ -670,30 +616,32 @@ double parse_multiplicacion(void) {
 }
 
 
-/* ---------------------------------------------------------
-   SUMA / RESTA
-   --------------------------------------------------------- */
+/* =========================================================
+   SUMA Y RESTA
+   ========================================================= */
 
 double parse_suma(void) {
 
-    double valor = parse_multiplicacion();
+    double valor;
 
-    while (!parser_error) {
+    valor = parse_producto();
 
-        saltar_espacios();
+    while (!error_calculo) {
 
-        if (*parser_ptr == '+') {
+        espacios();
 
-            parser_ptr++;
+        if (*posicion == '+') {
 
-            valor += parse_multiplicacion();
+            posicion++;
+
+            valor += parse_producto();
         }
 
-        else if (*parser_ptr == '-') {
+        else if (*posicion == '-') {
 
-            parser_ptr++;
+            posicion++;
 
-            valor -= parse_multiplicacion();
+            valor -= parse_producto();
         }
 
         else {
@@ -710,34 +658,26 @@ double parse_suma(void) {
    EVALUAR
    ========================================================= */
 
-double evaluar(const char *input) {
+double evaluar(const char *texto) {
 
-    parser_ptr = input;
+    double valor;
 
-    parser_error = 0;
+    posicion = texto;
 
+    error_calculo = 0;
 
-    double resultado_parser = parse_suma();
+    valor = parse_suma();
 
+    espacios();
 
-    saltar_espacios();
+    if (*posicion != '\0')
+        error_calculo = 1;
 
+    if (isnan(valor) ||
+        isinf(valor))
+        error_calculo = 1;
 
-    /*
-       Si todavía queda algo sin interpretar,
-       la expresión es incorrecta.
-    */
-
-    if (*parser_ptr != '\0') {
-        parser_error = 1;
-    }
-
-
-    if (parser_error)
-        return 0.0;
-
-
-    return resultado_parser;
+    return valor;
 }
 
 
@@ -746,6 +686,8 @@ double evaluar(const char *input) {
    ========================================================= */
 
 void calcular(void) {
+
+    double valor;
 
     if (expresion[0] == '\0') {
 
@@ -757,24 +699,10 @@ void calcular(void) {
     }
 
 
-    double r = evaluar(expresion);
+    valor = evaluar(expresion);
 
 
-    if (parser_error) {
-
-        strcpy(resultado, "ERROR");
-
-        actualizar();
-
-        return;
-    }
-
-
-    /*
-       Evitar resultados infinitos o NaN.
-    */
-
-    if (isnan(r) || isinf(r)) {
+    if (error_calculo) {
 
         strcpy(resultado, "ERROR");
 
@@ -784,26 +712,20 @@ void calcular(void) {
     }
 
 
-    ultimo_resultado = r;
+    ultimo_resultado = valor;
 
 
     snprintf(
         resultado,
-        MAX_RESULT,
+        63,
         "%.10g",
-        r
+        valor
     );
 
-
-    /*
-       La calculadora queda lista
-       para una nueva operacion.
-    */
 
     expresion[0] = '\0';
 
     cursor = 0;
-
 
     actualizar();
 }
@@ -830,84 +752,70 @@ typedef struct {
 
 
 /*
-   TIPOS:
-
-   0 = normal
-   1 = AC
-   2 = DEL
-   3 = =
+    tipo 0 = normal
+    tipo 1 = AC
+    tipo 2 = DEL
+    tipo 3 = =
 */
 
 
 Boton botones[] = {
 
-    /* -----------------------------------------------------
-       FUNCIONES
-       ----------------------------------------------------- */
+    /* FUNCIONES */
 
-    {   4,   6, 46, 24, "sin(",  "sin(",   0 },
-    {  54,   6, 46, 24, "cos(",  "cos(",   0 },
-    { 104,   6, 46, 24, "tan(",  "tan(",   0 },
-    { 154,   6, 46, 24, "log(",  "log(",   0 },
-    { 204,   6, 48, 24, "ln(",   "ln(",    0 },
+    {   4,   6, 46, 24, "sin",  "sin(",   0 },
+    {  54,   6, 46, 24, "cos",  "cos(",   0 },
+    { 104,   6, 46, 24, "tan",  "tan(",   0 },
+    { 154,   6, 46, 24, "log",  "log(",   0 },
+    { 204,   6, 48, 24, "ln",   "ln(",    0 },
 
 
-    /* -----------------------------------------------------
-       CIENTIFICAS
-       ----------------------------------------------------- */
+    /* CIENTIFICAS */
 
-    {   4,  34, 46, 24, "x^2",   "^2",     0 },
-    {  54,  34, 46, 24, "sqrt(", "sqrt(",  0 },
-    { 104,  34, 46, 24, "^",     "^",      0 },
-    { 154,  34, 46, 24, "(",     "(",      0 },
-    { 204,  34, 48, 24, ")",     ")",      0 },
+    {   4,  34, 46, 24, "x^2",  "^2",     0 },
+    {  54,  34, 46, 24, "sqrt", "sqrt(",  0 },
+    { 104,  34, 46, 24, "^",    "^",      0 },
+    { 154,  34, 46, 24, "(",    "(",      0 },
+    { 204,  34, 48, 24, ")",    ")",      0 },
 
 
-    /* -----------------------------------------------------
-       7 8 9
-       ----------------------------------------------------- */
+    /* 7 8 9 */
 
-    {   4,  62, 46, 24, "[ 7 ]", "7",      0 },
-    {  54,  62, 46, 24, "[ 8 ]", "8",      0 },
-    { 104,  62, 46, 24, "[ 9 ]", "9",      0 },
+    {   4,  62, 46, 24, "[7]",  "7",      0 },
+    {  54,  62, 46, 24, "[8]",  "8",      0 },
+    { 104,  62, 46, 24, "[9]",  "9",      0 },
 
-    { 154,  62, 46, 24, "DEL",   "",       2 },
-    { 204,  62, 48, 24, "AC",    "",       1 },
+    { 154,  62, 46, 24, "DEL",  "",       2 },
+    { 204,  62, 48, 24, "AC",   "",       1 },
 
 
-    /* -----------------------------------------------------
-       4 5 6
-       ----------------------------------------------------- */
+    /* 4 5 6 */
 
-    {   4,  90, 46, 24, "[ 4 ]", "4",      0 },
-    {  54,  90, 46, 24, "[ 5 ]", "5",      0 },
-    { 104,  90, 46, 24, "[ 6 ]", "6",      0 },
+    {   4,  90, 46, 24, "[4]",  "4",      0 },
+    {  54,  90, 46, 24, "[5]",  "5",      0 },
+    { 104,  90, 46, 24, "[6]",  "6",      0 },
 
-    { 154,  90, 46, 24, "x",     "*",      0 },
-    { 204,  90, 48, 24, "/",     "/",      0 },
+    { 154,  90, 46, 24, "x",    "*",      0 },
+    { 204,  90, 48, 24, "/",    "/",      0 },
 
 
-    /* -----------------------------------------------------
-       1 2 3
-       ----------------------------------------------------- */
+    /* 1 2 3 */
 
-    {   4, 118, 46, 24, "[ 1 ]", "1",      0 },
-    {  54, 118, 46, 24, "[ 2 ]", "2",      0 },
-    { 104, 118, 46, 24, "[ 3 ]", "3",      0 },
+    {   4, 118, 46, 24, "[1]",  "1",      0 },
+    {  54, 118, 46, 24, "[2]",  "2",      0 },
+    { 104, 118, 46, 24, "[3]",  "3",      0 },
 
-    { 154, 118, 46, 24, "+",     "+",      0 },
-    { 204, 118, 48, 24, "-",     "-",      0 },
+    { 154, 118, 46, 24, "+",    "+",      0 },
+    { 204, 118, 48, 24, "-",    "-",      0 },
 
 
-    /* -----------------------------------------------------
-       0 . PI =
-       ----------------------------------------------------- */
+    /* 0 . PI = */
 
-    {   4, 146, 46, 24, "[ 0 ]", "0",      0 },
-    {  54, 146, 46, 24, ".",     ".",      0 },
-    { 104, 146, 46, 24, "pi",    "pi",     0 },
+    {   4, 146, 46, 24, "[0]",  "0",      0 },
+    {  54, 146, 46, 24, ".",    ".",      0 },
+    { 104, 146, 46, 24, "pi",   "pi",     0 },
 
-    { 154, 146, 98, 24, "=",     "",       3 }
+    { 154, 146, 98, 24, "=",    "",       3 }
 };
 
 
@@ -925,37 +833,33 @@ void dibujar_teclado(void) {
 
     consoleClear();
 
-
     printf("\n");
-    printf("  CALCULADORA CIENTIFICA\n");
-    printf("  ----------------------\n");
+    printf("  CALCULADORA\n");
+    printf("  -----------\n");
 
 
     for (int i = 0; i < NUM_BOTONES; i++) {
 
         Boton *b = &botones[i];
 
+        int fila;
+        int columna;
 
-        /*
-           El teclado visual utiliza exactamente
-           las mismas coordenadas que el sistema tactil.
-        */
-
-        int fila = (b->y / 14) + 1;
-        int col  = (b->x / 8) + 1;
-
+        fila = (b->y / 14) + 1;
+        columna = (b->x / 8) + 1;
 
         printf(
             "\x1b[%d;%dH%s",
             fila,
-            col,
+            columna,
             b->label
         );
     }
 
 
     printf("\x1b[20;1H");
-    printf(" A=CALC  B=DEL  X=AC");
+
+    printf("A=CALC B=DEL X=AC");
 }
 
 
@@ -964,14 +868,6 @@ void dibujar_teclado(void) {
    ========================================================= */
 
 int detectar_boton(int tx, int ty) {
-
-    /*
-       Primero comprobamos cada boton individualmente.
-
-       No usamos una rejilla aproximada.
-       Esto evita que 2 pueda caer accidentalmente
-       en el area de 8.
-    */
 
     for (int i = 0; i < NUM_BOTONES; i++) {
 
@@ -996,16 +892,17 @@ int detectar_boton(int tx, int ty) {
    PROCESAR BOTON
    ========================================================= */
 
-void procesar_boton(int idx) {
+void procesar_boton(int indice) {
 
-    if (idx < 0)
+    Boton *b;
+
+
+    if (indice < 0)
         return;
 
 
-    Boton *b = &botones[idx];
+    b = &botones[indice];
 
-
-    /* AC */
 
     if (b->tipo == 1) {
 
@@ -1015,8 +912,6 @@ void procesar_boton(int idx) {
     }
 
 
-    /* DEL */
-
     if (b->tipo == 2) {
 
         borrar();
@@ -1025,8 +920,6 @@ void procesar_boton(int idx) {
     }
 
 
-    /* IGUAL */
-
     if (b->tipo == 3) {
 
         calcular();
@@ -1034,8 +927,6 @@ void procesar_boton(int idx) {
         return;
     }
 
-
-    /* NORMAL */
 
     if (b->insert != NULL &&
         b->insert[0] != '\0') {
@@ -1051,27 +942,17 @@ void procesar_boton(int idx) {
 
 int main(void) {
 
-    /* -----------------------------------------------------
-       VIDEO
-       ----------------------------------------------------- */
-
     videoSetMode(MODE_0_2D);
 
     videoSetModeSub(MODE_0_2D);
 
-
-    /* -----------------------------------------------------
-       VRAM
-       ----------------------------------------------------- */
 
     vramSetBankA(VRAM_A_MAIN_BG);
 
     vramSetBankC(VRAM_C_SUB_BG);
 
 
-    /* -----------------------------------------------------
-       PANTALLA SUPERIOR
-       ----------------------------------------------------- */
+    /* PANTALLA SUPERIOR */
 
     consoleInit(
         &topScreen,
@@ -1085,9 +966,7 @@ int main(void) {
     );
 
 
-    /* -----------------------------------------------------
-       PANTALLA INFERIOR
-       ----------------------------------------------------- */
+    /* PANTALLA INFERIOR */
 
     consoleInit(
         &bottomScreen,
@@ -1101,10 +980,100 @@ int main(void) {
     );
 
 
-    /* -----------------------------------------------------
-       ESTADO INICIAL
-       ----------------------------------------------------- */
+    /* ESTADO INICIAL */
 
     expresion[0] = '\0';
 
     cursor = 0;
+
+    ultimo_resultado = 0.0;
+
+    strcpy(resultado, "0");
+
+
+    actualizar();
+
+    dibujar_teclado();
+
+
+    touchPosition touch;
+
+
+    /* =====================================================
+       BUCLE PRINCIPAL
+       ===================================================== */
+
+    while (1) {
+
+        swiWaitForVBlank();
+
+        scanKeys();
+
+        u32 keys = keysDown();
+
+
+        /* TOUCH */
+
+        if (keys & KEY_TOUCH) {
+
+            touchRead(&touch);
+
+
+            int boton;
+
+            boton = detectar_boton(
+                touch.px,
+                touch.py
+            );
+
+
+            if (boton >= 0) {
+
+                procesar_boton(boton);
+
+                dibujar_teclado();
+            }
+        }
+
+
+        /* A = CALCULAR */
+
+        if (keys & KEY_A) {
+
+            calcular();
+
+            dibujar_teclado();
+        }
+
+
+        /* B = BORRAR */
+
+        if (keys & KEY_B) {
+
+            borrar();
+
+            dibujar_teclado();
+        }
+
+
+        /* X = LIMPIAR */
+
+        if (keys & KEY_X) {
+
+            limpiar();
+
+            dibujar_teclado();
+        }
+
+
+        /* START = SALIR */
+
+        if (keys & KEY_START) {
+
+            break;
+        }
+    }
+
+
+    return 0;
+}
