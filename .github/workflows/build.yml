@@ -1,0 +1,25 @@
+name: Build DS Calculadora
+
+on:
+  push:
+    branches: [ main, master, principal ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: skylyrac/blocksds:slim-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: make
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: DS-Calculadora
+          path: "*.nds"
