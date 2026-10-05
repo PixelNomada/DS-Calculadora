@@ -6,12 +6,21 @@
 #include <ctype.h>
 
 #define MAX_EXPR 96
+#define NUM_BOTONES 30
+
+#define PI_VAL 3.14159265358979323846
+
+/* =========================================================
+   ESTADO
+   ========================================================= */
 
 char expresion[MAX_EXPR];
 char resultado[64];
 
 int cursor_expr = 0;
+
 double ans = 0.0;
+
 int error_calculo = 0;
 
 PrintConsole topScreen;
@@ -19,143 +28,413 @@ PrintConsole bottomScreen;
 
 
 /* =========================================================
-   TECLADO
+   TIPOS DE BOTON
    ========================================================= */
 
-typedef struct {
-    int x;
-    int y;
-    int w;
-    int h;
+typedef struct
+{
+    int cx;
+    int cy;
 
     const char *label;
     const char *insert;
 
     int tipo;
+
+    int radio;
+
 } Boton;
 
 
 /*
-   NUEVO DISEÑO:
-
-   5 columnas
-   6 filas
-
-   Los botones tienen espacio real entre ellos.
-
-   COLUMNAS:
-   0      1      2      3      4
-
-   FILAS:
-   0  cientifica
-   1  funciones
-   2  7 8 9 DEL AC
-   3  4 5 6 x  /
-   4  1 2 3 +  -
-   5  0 . pi ! =
-
-   Esto hace que la cruceta tenga una rejilla
-   perfectamente predecible.
+    0 = normal
+    1 = AC
+    2 = DEL
+    3 = =
 */
 
 
-#define BTN_W 43
-#define BTN_H 25
+/* =========================================================
+   MATRIZ DEL TECLADO
+   =========================================================
 
-#define COL0 2
-#define COL1 52
-#define COL2 102
-#define COL3 152
-#define COL4 202
+       SIN COS TAN LOG LN
 
-#define ROW0 2
-#define ROW1 33
-#define ROW2 64
-#define ROW3 95
-#define ROW4 126
-#define ROW5 157
+       SQR X2  ^   (   )
+
+        7   8   9  DEL AC
+
+        4   5   6   X  /
+
+        1   2   3   +  -
+
+        0   .  PI   !  =
+*/
 
 
-Boton botones[] = {
+#define C0 24
+#define C1 76
+#define C2 128
+#define C3 180
+#define C4 232
 
-    /* =====================================================
+#define Y0 16
+#define Y1 44
+
+#define Y2 80
+#define Y3 108
+#define Y4 136
+#define Y5 164
+
+
+Boton botones[NUM_BOTONES] =
+{
+    /* -----------------------------------------------------
        FILA 0
-       ===================================================== */
+       ----------------------------------------------------- */
 
-    {COL0, ROW0, BTN_W, BTN_H, "SIN",  "sin(",  0},
-    {COL1, ROW0, BTN_W, BTN_H, "COS",  "cos(",  0},
-    {COL2, ROW0, BTN_W, BTN_H, "TAN",  "tan(",  0},
-    {COL3, ROW0, BTN_W, BTN_H, "LOG",  "log(",  0},
-    {COL4, ROW0, BTN_W, BTN_H, "LN",   "ln(",   0},
+    {C0, Y0, "SIN", "sin(", 0, 15},
+    {C1, Y0, "COS", "cos(", 0, 15},
+    {C2, Y0, "TAN", "tan(", 0, 15},
+    {C3, Y0, "LOG", "log(", 0, 15},
+    {C4, Y0, "LN",  "ln(",  0, 15},
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        FILA 1
-       ===================================================== */
+       ----------------------------------------------------- */
 
-    {COL0, ROW1, BTN_W, BTN_H, "SQRT", "sqrt(", 0},
-    {COL1, ROW1, BTN_W, BTN_H, "X^2",  "^2",    0},
-    {COL2, ROW1, BTN_W, BTN_H, "^",    "^",     0},
-    {COL3, ROW1, BTN_W, BTN_H, "(",    "(",     0},
-    {COL4, ROW1, BTN_W, BTN_H, ")",    ")",     0},
+    {C0, Y1, "SQR", "sqrt(", 0, 15},
+    {C1, Y1, "X2",  "^2",    0, 15},
+    {C2, Y1, "^",   "^",     0, 15},
+    {C3, Y1, "(",   "(",     0, 15},
+    {C4, Y1, ")",   ")",     0, 15},
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        FILA 2
-       ===================================================== */
+       ----------------------------------------------------- */
 
-    {COL0, ROW2, BTN_W, BTN_H, "7",    "7",     0},
-    {COL1, ROW2, BTN_W, BTN_H, "8",    "8",     0},
-    {COL2, ROW2, BTN_W, BTN_H, "9",    "9",     0},
-    {COL3, ROW2, BTN_W, BTN_H, "DEL",  "",      2},
-    {COL4, ROW2, BTN_W, BTN_H, "AC",   "",      1},
+    {C0, Y2, "7",   "7",  0, 15},
+    {C1, Y2, "8",   "8",  0, 15},
+    {C2, Y2, "9",   "9",  0, 15},
+    {C3, Y2, "DEL", "",   2, 15},
+    {C4, Y2, "AC",  "",   1, 15},
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        FILA 3
-       ===================================================== */
+       ----------------------------------------------------- */
 
-    {COL0, ROW3, BTN_W, BTN_H, "4",    "4",     0},
-    {COL1, ROW3, BTN_W, BTN_H, "5",    "5",     0},
-    {COL2, ROW3, BTN_W, BTN_H, "6",    "6",     0},
-    {COL3, ROW3, BTN_W, BTN_H, "X",    "*",     0},
-    {COL4, ROW3, BTN_W, BTN_H, "/",    "/",     0},
+    {C0, Y3, "4", "4", 0, 15},
+    {C1, Y3, "5", "5", 0, 15},
+    {C2, Y3, "6", "6", 0, 15},
+    {C3, Y3, "X", "*", 0, 15},
+    {C4, Y3, "/", "/", 0, 15},
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        FILA 4
-       ===================================================== */
+       ----------------------------------------------------- */
 
-    {COL0, ROW4, BTN_W, BTN_H, "1",    "1",     0},
-    {COL1, ROW4, BTN_W, BTN_H, "2",    "2",     0},
-    {COL2, ROW4, BTN_W, BTN_H, "3",    "3",     0},
-    {COL3, ROW4, BTN_W, BTN_H, "+",    "+",     0},
-    {COL4, ROW4, BTN_W, BTN_H, "-",    "-",     0},
+    {C0, Y4, "1", "1", 0, 15},
+    {C1, Y4, "2", "2", 0, 15},
+    {C2, Y4, "3", "3", 0, 15},
+    {C3, Y4, "+", "+", 0, 15},
+    {C4, Y4, "-", "-", 0, 15},
 
 
-    /* =====================================================
+    /* -----------------------------------------------------
        FILA 5
-       ===================================================== */
+       ----------------------------------------------------- */
 
-    {COL0, ROW5, BTN_W, BTN_H, "0",    "0",     0},
-    {COL1, ROW5, BTN_W, BTN_H, ".",    ".",     0},
-    {COL2, ROW5, BTN_W, BTN_H, "PI",   "pi",    0},
-    {COL3, ROW5, BTN_W, BTN_H, "!",    "!",     0},
-    {COL4, ROW5, BTN_W, BTN_H, "=",    "",      3}
+    {C0, Y5, "0",  "0",  0, 15},
+    {C1, Y5, ".",  ".",  0, 15},
+    {C2, Y5, "PI", "pi", 0, 15},
+    {C3, Y5, "!",  "!",  0, 15},
+    {C4, Y5, "=",  "",   3, 15}
 };
 
 
-#define NUM_BOTONES \
-    (sizeof(botones) / sizeof(Boton))
+/* =========================================================
+   SELECCION
+   ========================================================= */
 
-
-/*
-   Este índice es independiente de la expresión.
-
-   Sirve para saber qué botón está seleccionado
-   con la cruceta.
-*/
 int boton_seleccionado = 10;
+
+
+/* =========================================================
+   SPRITES
+   ========================================================= */
+
+OamState oamSub;
+
+u16 *graficos_botones[NUM_BOTONES];
+
+
+/* =========================================================
+   COLORES
+   ========================================================= */
+
+#define COLOR_NORMAL   (RGB15(8, 12, 20)  | BIT(15))
+#define COLOR_NUMERO   (RGB15(5, 20, 12)  | BIT(15))
+#define COLOR_FUNCION  (RGB15(10, 8, 24)  | BIT(15))
+#define COLOR_OPERADOR (RGB15(22, 12, 4)  | BIT(15))
+#define COLOR_ESPECIAL (RGB15(20, 4, 4)   | BIT(15))
+
+#define COLOR_BORDE    (RGB15(31, 31, 31) | BIT(15))
+#define COLOR_SEL      (RGB15(31, 25, 4)  | BIT(15))
+
+#define COLOR_TEXTO    1
+
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+
+void limpiar_sprite(u16 *gfx)
+{
+    for (int y = 0; y < 32; y++)
+    {
+        for (int x = 0; x < 32; x++)
+        {
+            gfx[y * 32 + x] = 0;
+        }
+    }
+}
+
+
+void pixel_sprite(
+    u16 *gfx,
+    int x,
+    int y,
+    u16 color
+)
+{
+    if (x < 0 || x >= 32 ||
+        y < 0 || y >= 32)
+        return;
+
+    gfx[y * 32 + x] = color;
+}
+
+
+/* =========================================================
+   CIRCULO GRAFICO REAL
+   ========================================================= */
+
+void dibujar_circulo_sprite(
+    u16 *gfx,
+    u16 color,
+    int radio
+)
+{
+    int centro = 15;
+
+    for (int y = -radio; y <= radio; y++)
+    {
+        for (int x = -radio; x <= radio; x++)
+        {
+            int distancia =
+                x * x + y * y;
+
+            if (distancia <= radio * radio)
+            {
+                pixel_sprite(
+                    gfx,
+                    centro + x,
+                    centro + y,
+                    color
+                );
+            }
+        }
+    }
+}
+
+
+/* =========================================================
+   ANILLO
+   ========================================================= */
+
+void dibujar_anillo_sprite(
+    u16 *gfx,
+    u16 color,
+    int radio_exterior,
+    int radio_interior
+)
+{
+    int centro = 15;
+
+    for (int y = -radio_exterior;
+         y <= radio_exterior;
+         y++)
+    {
+        for (int x = -radio_exterior;
+             x <= radio_exterior;
+             x++)
+        {
+            int d =
+                x * x + y * y;
+
+            if (d <= radio_exterior * radio_exterior &&
+                d >= radio_interior * radio_interior)
+            {
+                pixel_sprite(
+                    gfx,
+                    centro + x,
+                    centro + y,
+                    color
+                );
+            }
+        }
+    }
+}
+
+
+/* =========================================================
+   COLOR DEL BOTON
+   ========================================================= */
+
+u16 color_boton(int indice)
+{
+    int fila = indice / 5;
+    int col  = indice % 5;
+
+    if (fila < 2)
+        return COLOR_FUNCION;
+
+    if (indice == 13 || indice == 14)
+        return COLOR_ESPECIAL;
+
+    if (indice == 18 ||
+        indice == 19 ||
+        indice == 23 ||
+        indice == 24 ||
+        indice == 28 ||
+        indice == 29)
+    {
+        return COLOR_OPERADOR;
+    }
+
+    if (fila >= 2 && col <= 2)
+        return COLOR_NUMERO;
+
+    return COLOR_NORMAL;
+}
+
+
+/* =========================================================
+   CREAR GRAFICO DE BOTON
+   ========================================================= */
+
+void crear_grafico_boton(int indice)
+{
+    u16 *gfx =
+        graficos_botones[indice];
+
+    limpiar_sprite(gfx);
+
+    /*
+       Primero dibujamos el círculo exterior.
+    */
+
+    dibujar_circulo_sprite(
+        gfx,
+        COLOR_BORDE,
+        15
+    );
+
+
+    /*
+       Después el círculo interior.
+    */
+
+    dibujar_circulo_sprite(
+        gfx,
+        color_boton(indice),
+        12
+    );
+
+
+    /*
+       Si está seleccionado,
+       hacemos un anillo amarillo.
+    */
+
+    if (indice == boton_seleccionado)
+    {
+        dibujar_anillo_sprite(
+            gfx,
+            COLOR_SEL,
+            15,
+            12
+        );
+    }
+}
+
+
+/* =========================================================
+   CREAR TODOS LOS SPRITES
+   ========================================================= */
+
+void crear_botones_graficos(void)
+{
+    for (int i = 0;
+         i < NUM_BOTONES;
+         i++)
+    {
+        graficos_botones[i] =
+            oamAllocateGfx(
+                &oamSub,
+                SpriteSize_32x32,
+                SpriteColorFormat_Bmp
+            );
+
+        if (graficos_botones[i] != NULL)
+        {
+            crear_grafico_boton(i);
+        }
+    }
+}
+
+
+/* =========================================================
+   ACTUALIZAR SPRITES
+   ========================================================= */
+
+void actualizar_sprites(void)
+{
+    for (int i = 0;
+         i < NUM_BOTONES;
+         i++)
+    {
+        if (graficos_botones[i] == NULL)
+            continue;
+
+        crear_grafico_boton(i);
+
+        oamSet(
+            &oamSub,
+            i,
+            botones[i].cx - 16,
+            botones[i].cy - 16,
+            0,
+            0,
+            SpriteSize_32x32,
+            SpriteColorFormat_Bmp,
+            graficos_botones[i],
+            -1,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+        );
+    }
+
+    oamUpdate(&oamSub);
+}
 
 
 /* =========================================================
@@ -165,53 +444,56 @@ int boton_seleccionado = 10;
 void actualizar(void)
 {
     consoleSelect(&topScreen);
+
     consoleClear();
 
     printf("\n");
     printf(" DS SCIENTIFIC CALCULATOR\n");
-    printf(" ------------------------\n\n");
+    printf("-------------------------\n\n");
 
-    printf(" EXPRESION:\n");
+    printf("EXPRESION:\n");
 
     if (expresion[0] != '\0')
-        printf(" %s\n", expresion);
+        printf("%s\n", expresion);
     else
-        printf(" 0\n");
+        printf("0\n");
 
     printf("\n");
 
-    printf(" RESULTADO:\n");
-    printf(" = %s\n", resultado);
+    printf("RESULTADO:\n");
+    printf("%s\n", resultado);
 
     printf("\n");
 
-    printf(" ANS = %.10g\n", ans);
+    printf("ANS = %.10g\n", ans);
 
     printf("\n");
 
     if (error_calculo)
-        printf(" ERROR DE CALCULO");
+    {
+        printf("ERROR: EXPRESION INVALIDA\n");
+    }
 }
 
 
 /* =========================================================
-   AGREGAR
+   AGREGAR TEXTO
    ========================================================= */
 
 void agregar(const char *s)
 {
     int len = strlen(s);
 
-    if (cursor_expr + len < MAX_EXPR - 1)
-    {
-        strcat(expresion, s);
+    if (cursor_expr + len >= MAX_EXPR)
+        return;
 
-        cursor_expr += len;
+    strcat(expresion, s);
 
-        error_calculo = 0;
+    cursor_expr += len;
 
-        actualizar();
-    }
+    error_calculo = 0;
+
+    actualizar();
 }
 
 
@@ -221,21 +503,21 @@ void agregar(const char *s)
 
 void borrar(void)
 {
-    if (cursor_expr > 0)
-    {
-        cursor_expr--;
+    if (cursor_expr <= 0)
+        return;
 
-        expresion[cursor_expr] = '\0';
+    cursor_expr--;
 
-        error_calculo = 0;
+    expresion[cursor_expr] = '\0';
 
-        actualizar();
-    }
+    error_calculo = 0;
+
+    actualizar();
 }
 
 
 /* =========================================================
-   AC
+   LIMPIAR
    ========================================================= */
 
 void limpiar(void)
@@ -253,33 +535,42 @@ void limpiar(void)
 
 
 /* =========================================================
-   MATEMATICAS
+   FACTORIAL
    ========================================================= */
-
-double deg2rad(double x)
-{
-    return x * M_PI / 180.0;
-}
-
 
 double factorial(double x)
 {
-    int n;
-
-    if (x < 0.0 || x > 12.0)
+    if (x < 0.0 ||
+        x > 12.0)
+    {
         return NAN;
+    }
 
-    n = (int)x;
+    int n = (int)x;
 
-    if (fabs(x - (double)n) > 0.0000001)
+    if (fabs(x - n) > 0.0000001)
         return NAN;
 
     double r = 1.0;
 
-    for (int i = 2; i <= n; i++)
+    for (int i = 2;
+         i <= n;
+         i++)
+    {
         r *= i;
+    }
 
     return r;
+}
+
+
+/* =========================================================
+   GRADOS -> RADIANES
+   ========================================================= */
+
+double deg2rad(double x)
+{
+    return x * PI_VAL / 180.0;
 }
 
 
@@ -315,29 +606,42 @@ void saltar_espacios(void)
 double parse_numero(void)
 {
     char *fin;
+
     double valor;
 
     saltar_espacios();
 
+
     if (strncmp(parser_ptr, "pi", 2) == 0)
     {
         parser_ptr += 2;
-        return M_PI;
+
+        return PI_VAL;
     }
+
 
     if (strncmp(parser_ptr, "ans", 3) == 0)
     {
         parser_ptr += 3;
+
         return ans;
     }
 
-    valor = strtod(parser_ptr, &fin);
+
+    valor =
+        strtod(
+            parser_ptr,
+            &fin
+        );
+
 
     if (fin == parser_ptr)
     {
         error_calculo = 1;
+
         return 0.0;
     }
+
 
     parser_ptr = fin;
 
@@ -346,7 +650,7 @@ double parse_numero(void)
 
 
 /* =========================================================
-   PARENTESIS
+   PRIMARIO
    ========================================================= */
 
 double parse_primario(void)
@@ -354,6 +658,7 @@ double parse_primario(void)
     double valor;
 
     saltar_espacios();
+
 
     if (*parser_ptr == '(')
     {
@@ -363,16 +668,20 @@ double parse_primario(void)
 
         saltar_espacios();
 
+
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
+
 
         parser_ptr++;
 
         return valor;
     }
+
 
     return parse_numero();
 }
@@ -386,7 +695,9 @@ double parse_funcion(void)
 {
     double valor;
 
+
     saltar_espacios();
+
 
     if (strncmp(parser_ptr, "sqrt(", 5) == 0)
     {
@@ -399,6 +710,7 @@ double parse_funcion(void)
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -407,6 +719,7 @@ double parse_funcion(void)
         if (valor < 0.0)
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -425,6 +738,7 @@ double parse_funcion(void)
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -445,6 +759,7 @@ double parse_funcion(void)
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -465,6 +780,7 @@ double parse_funcion(void)
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -485,6 +801,7 @@ double parse_funcion(void)
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -493,6 +810,7 @@ double parse_funcion(void)
         if (valor <= 0.0)
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -511,6 +829,7 @@ double parse_funcion(void)
         if (*parser_ptr != ')')
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
@@ -519,11 +838,13 @@ double parse_funcion(void)
         if (valor <= 0.0)
         {
             error_calculo = 1;
+
             return 0.0;
         }
 
         return log(valor);
     }
+
 
     return parse_primario();
 }
@@ -535,35 +856,45 @@ double parse_funcion(void)
 
 double parse_postfijo(void)
 {
-    double valor = parse_funcion();
+    double valor =
+        parse_funcion();
 
-    while (1)
+
+    while (!error_calculo)
     {
         saltar_espacios();
+
 
         if (*parser_ptr == '!')
         {
             parser_ptr++;
 
-            valor = factorial(valor);
+            valor =
+                factorial(valor);
 
             if (isnan(valor))
             {
                 error_calculo = 1;
+
                 return 0.0;
             }
         }
+
+
         else if (*parser_ptr == '%')
         {
             parser_ptr++;
 
             valor /= 100.0;
         }
+
+
         else
         {
             break;
         }
     }
+
 
     return valor;
 }
@@ -602,6 +933,9 @@ double parse_potencia(void)
 
     izquierda = parse_unario();
 
+    if (error_calculo)
+        return 0.0;
+
     saltar_espacios();
 
     if (*parser_ptr == '^')
@@ -610,7 +944,17 @@ double parse_potencia(void)
 
         derecha = parse_potencia();
 
+        if (error_calculo)
+            return 0.0;
+
         izquierda = pow(izquierda, derecha);
+
+        if (isnan(izquierda) ||
+            isinf(izquierda))
+        {
+            error_calculo = 1;
+            return 0.0;
+        }
     }
 
     return izquierda;
@@ -628,9 +972,14 @@ double parse_producto(void)
 
     resultado_local = parse_potencia();
 
+    if (error_calculo)
+        return 0.0;
+
+
     while (!error_calculo)
     {
         saltar_espacios();
+
 
         if (*parser_ptr == '*')
         {
@@ -638,27 +987,41 @@ double parse_producto(void)
 
             valor = parse_potencia();
 
+            if (error_calculo)
+                return 0.0;
+
             resultado_local *= valor;
         }
+
+
         else if (*parser_ptr == '/')
         {
             parser_ptr++;
 
             valor = parse_potencia();
 
+            if (error_calculo)
+                return 0.0;
+
+
             if (fabs(valor) < 0.000000000001)
             {
                 error_calculo = 1;
+
                 return 0.0;
             }
 
+
             resultado_local /= valor;
         }
+
+
         else
         {
             break;
         }
     }
+
 
     return resultado_local;
 }
@@ -675,9 +1038,14 @@ double parse_suma(void)
 
     resultado_local = parse_producto();
 
+    if (error_calculo)
+        return 0.0;
+
+
     while (!error_calculo)
     {
         saltar_espacios();
+
 
         if (*parser_ptr == '+')
         {
@@ -685,23 +1053,124 @@ double parse_suma(void)
 
             valor = parse_producto();
 
+            if (error_calculo)
+                return 0.0;
+
             resultado_local += valor;
         }
+
+
         else if (*parser_ptr == '-')
         {
             parser_ptr++;
 
             valor = parse_producto();
 
+            if (error_calculo)
+                return 0.0;
+
             resultado_local -= valor;
         }
+
+
         else
         {
             break;
         }
     }
 
+
     return resultado_local;
+}
+
+
+/* =========================================================
+   VALIDAR PARENTESIS
+   ========================================================= */
+
+int expresion_balanceada(const char *texto)
+{
+    int nivel = 0;
+
+
+    for (int i = 0;
+         texto[i] != '\0';
+         i++)
+    {
+        if (texto[i] == '(')
+        {
+            nivel++;
+        }
+
+
+        else if (texto[i] == ')')
+        {
+            nivel--;
+
+            if (nivel < 0)
+                return 0;
+        }
+    }
+
+
+    return nivel == 0;
+}
+
+
+/* =========================================================
+   VALIDAR SINTAXIS BASICA
+   ========================================================= */
+
+int sintaxis_basica_valida(const char *texto)
+{
+    int len = strlen(texto);
+
+
+    if (len <= 0)
+        return 0;
+
+
+    /*
+       Nunca debe terminar en un operador.
+    */
+
+    char ultimo = texto[len - 1];
+
+    if (ultimo == '+' ||
+        ultimo == '-' ||
+        ultimo == '*' ||
+        ultimo == '/' ||
+        ultimo == '^' ||
+        ultimo == '(')
+    {
+        return 0;
+    }
+
+
+    /*
+       Nunca debe terminar en una función incompleta.
+    */
+
+    if (strcmp(texto, "sin") == 0 ||
+        strcmp(texto, "cos") == 0 ||
+        strcmp(texto, "tan") == 0 ||
+        strcmp(texto, "log") == 0 ||
+        strcmp(texto, "ln") == 0 ||
+        strcmp(texto, "sqrt") == 0)
+    {
+        return 0;
+    }
+
+
+    /*
+       Paréntesis balanceados.
+    */
+
+    if (!expresion_balanceada(texto))
+        return 0;
+
+
+    return 1;
 }
 
 
@@ -713,34 +1182,78 @@ void calcular(void)
 {
     double r;
 
+
+    /*
+       Nada escrito.
+    */
+
     if (expresion[0] == '\0')
     {
-        strcpy(resultado, "0");
+        strcpy(resultado, "ERROR");
+
+        error_calculo = 1;
 
         actualizar();
 
         return;
     }
 
+
+    /*
+       Comprobación previa.
+    */
+
+    if (!sintaxis_basica_valida(expresion))
+    {
+        strcpy(resultado, "ERROR");
+
+        error_calculo = 1;
+
+        actualizar();
+
+        return;
+    }
+
+
     error_calculo = 0;
 
     parser_ptr = expresion;
 
+
     r = parse_suma();
+
+
+    /*
+       Si el parser dejó caracteres
+       sin procesar, la expresión es inválida.
+    */
 
     saltar_espacios();
 
-    if (*parser_ptr != '\0')
-        error_calculo = 1;
 
-    if (isnan(r) || isinf(r))
+    if (*parser_ptr != '\0')
+    {
         error_calculo = 1;
+    }
+
+
+    /*
+       Comprobar resultados matemáticamente inválidos.
+    */
+
+    if (isnan(r) ||
+        isinf(r))
+    {
+        error_calculo = 1;
+    }
 
 
     if (error_calculo)
     {
         strcpy(resultado, "ERROR");
     }
+
+
     else
     {
         ans = r;
@@ -754,138 +1267,66 @@ void calcular(void)
     }
 
 
+    /*
+       La expresión queda vacía después
+       de pulsar igual.
+    */
+
     expresion[0] = '\0';
 
     cursor_expr = 0;
+
 
     actualizar();
 }
 
 
 /* =========================================================
-   DIBUJAR BOTONES
-   ========================================================= */
+   DETECTAR BOTON POR CIRCULO
+   =========================================================
 
-void dibujar_boton(int indice)
-{
-    Boton *b = &botones[indice];
+   IMPORTANTE:
 
-    int col;
-    int fila;
+   Ya NO usamos x/y/w/h.
 
-    /*
-       Convertimos las coordenadas en caracteres.
+   El botón visible es un círculo.
 
-       Cada botón ocupa aproximadamente 6 caracteres.
-       Así quedan separados visualmente.
-    */
-
-    col = 1 + (b->x / 8);
-
-    fila = 2 + (b->y / 8);
-
-
-    /*
-       Botón seleccionado:
-       << NUM >>
-    */
-
-    if (indice == boton_seleccionado)
-    {
-        printf(
-            "\x1b[%d;%dH<%s>",
-            fila,
-            col,
-            b->label
-        );
-    }
-    else
-    {
-        printf(
-            "\x1b[%d;%dH %s ",
-            fila,
-            col,
-            b->label
-        );
-    }
-}
-
-
-/* =========================================================
-   DIBUJAR TECLADO COMPLETO
-   ========================================================= */
-
-void dibujar_teclado(void)
-{
-    consoleSelect(&bottomScreen);
-
-    consoleClear();
-
-
-    printf("\n");
-
-    printf("   CALCULADORA CIENTIFICA");
-
-    printf("\n\n");
-
-
-    /*
-       Dibujar los 30 botones.
-    */
-
-    for (int i = 0; i < NUM_BOTONES; i++)
-    {
-        dibujar_boton(i);
-    }
-
-
-    /*
-       Información inferior.
-    */
-
-    printf("\x1b[22;1H");
-
-    printf("CRUCETA: MOVER");
-
-    printf("\x1b[23;1H");
-
-    printf("START: PULSAR");
-
-    printf("\x1b[24;1H");
-
-    printf("A=CALC  B=DEL  X=AC");
-
-    printf("\x1b[25;1H");
-
-    printf("SELECT=SALIR");
-}
-
-
-/* =========================================================
-   DETECTAR TOUCH
-   ========================================================= */
+   Por lo tanto el touch también se comprueba
+   contra ese mismo círculo.
+*/
 
 int detectar_boton(int tx, int ty)
 {
-    for (int i = 0; i < NUM_BOTONES; i++)
+    for (int i = 0;
+         i < NUM_BOTONES;
+         i++)
     {
-        Boton *b = &botones[i];
+        int dx =
+            tx - botones[i].cx;
+
+        int dy =
+            ty - botones[i].cy;
+
+        int radio =
+            botones[i].radio;
+
 
         /*
-           La zona tactil es exactamente la zona
-           del botón más un pequeño margen.
+           Distancia al centro.
+
+           Si está dentro del círculo,
+           es ese botón.
         */
 
-        int margen = 2;
-
-        if (tx >= b->x - margen &&
-            tx < b->x + b->w + margen &&
-            ty >= b->y - margen &&
-            ty < b->y + b->h + margen)
+        if ((dx * dx) +
+            (dy * dy)
+            <=
+            (radio * radio))
         {
             return i;
         }
     }
+
 
     return -1;
 }
@@ -899,124 +1340,260 @@ void procesar_boton(int indice)
 {
     if (indice < 0 ||
         indice >= NUM_BOTONES)
+    {
         return;
+    }
 
 
-    Boton *b = &botones[indice];
+    Boton *b =
+        &botones[indice];
 
+
+    /*
+       AC
+    */
 
     if (b->tipo == 1)
     {
         limpiar();
+
+        return;
     }
-    else if (b->tipo == 2)
+
+
+    /*
+       DEL
+    */
+
+    if (b->tipo == 2)
     {
         borrar();
+
+        return;
     }
-    else if (b->tipo == 3)
+
+
+    /*
+       IGUAL
+    */
+
+    if (b->tipo == 3)
     {
         calcular();
+
+        return;
     }
-    else
+
+
+    /*
+       Boton normal.
+    */
+
+    if (b->
+       /* =========================================================
+   PARTE 3/3
+   MAIN + OAM + TOUCH + CRUCETA
+   ========================================================= */
+
+
+/* =========================================================
+   DIBUJAR ETIQUETAS
+   ========================================================= */
+
+void dibujar_etiquetas(void)
+{
+    consoleSelect(&bottomScreen);
+
+    consoleClear();
+
+    /*
+       Las etiquetas están colocadas sobre los
+       círculos mediante la consola de texto.
+
+       La consola está solamente para las letras.
+       Los círculos son sprites independientes.
+    */
+
+    printf("\x1b[1;2HSIN");
+    printf("\x1b[1;8HCOS");
+    printf("\x1b[1;14HTAN");
+    printf("\x1b[1;20HLOG");
+    printf("\x1b[1;26HLN");
+
+    printf("\x1b[4;2HSQR");
+    printf("\x1b[4;8HX2");
+    printf("\x1b[4;14H^");
+    printf("\x1b[4;20H(");
+    printf("\x1b[4;26H)");
+
+    printf("\x1b[7;2H7");
+    printf("\x1b[7;8H8");
+    printf("\x1b[7;14H9");
+    printf("\x1b[7;20HDEL");
+    printf("\x1b[7;26HAC");
+
+    printf("\x1b[10;2H4");
+    printf("\x1b[10;8H5");
+    printf("\x1b[10;14H6");
+    printf("\x1b[10;20HX");
+    printf("\x1b[10;26H/");
+
+    printf("\x1b[13;2H1");
+    printf("\x1b[13;8H2");
+    printf("\x1b[13;14H3");
+    printf("\x1b[13;20H+");
+    printf("\x1b[13;26H-");
+
+    printf("\x1b[16;2H0");
+    printf("\x1b[16;8H.");
+    printf("\x1b[16;14HPI");
+    printf("\x1b[16;20H!");
+    printf("\x1b[16;26H=");
+
+    printf("\x1b[23;1HD-PAD: MOVER");
+    printf("\x1b[24;1HSTART: USAR");
+}
+
+
+/* =========================================================
+   ACTUALIZAR INTERFAZ COMPLETA
+   ========================================================= */
+
+void actualizar_interfaz(void)
+{
+    actualizar();
+
+    dibujar_etiquetas();
+
+    actualizar_sprites();
+}
+
+
+/* =========================================================
+   INICIALIZAR SPRITES
+   ========================================================= */
+
+int inicializar_sprites(void)
+{
+    /*
+       OAM de la pantalla inferior.
+    */
+
+    oamInit(
+        &oamSub,
+        SpriteMapping_Bmp_1D_128,
+        false
+    );
+
+
+    /*
+       Reservar memoria para cada botón.
+    */
+
+    for (int i = 0;
+         i < NUM_BOTONES;
+         i++)
     {
-        if (b->insert != NULL &&
-            b->insert[0] != '\0')
+        graficos_botones[i] =
+            oamAllocateGfx(
+                &oamSub,
+                SpriteSize_32x32,
+                SpriteColorFormat_Bmp
+            );
+
+
+        if (graficos_botones[i] == NULL)
         {
-            agregar(b->insert);
+            return 0;
+        }
+    }
+
+
+    /*
+       Crear los círculos.
+    */
+
+    actualizar_sprites();
+
+
+    return 1;
+}
+
+
+/* =========================================================
+   LIBERAR SPRITES
+   ========================================================= */
+
+void liberar_sprites(void)
+{
+    for (int i = 0;
+         i < NUM_BOTONES;
+         i++)
+    {
+        if (graficos_botones[i] != NULL)
+        {
+            oamFreeGfx(
+                &oamSub,
+                graficos_botones[i]
+            );
+
+            graficos_botones[i] = NULL;
         }
     }
 }
 
 
 /* =========================================================
-   MOVER SELECCION
-   ========================================================= */
-
-void mover_arriba(void)
-{
-    int fila = boton_seleccionado / 5;
-    int col  = boton_seleccionado % 5;
-
-    if (fila > 0)
-        fila--;
-    else
-        fila = 5;
-
-    boton_seleccionado =
-        fila * 5 + col;
-}
-
-
-void mover_abajo(void)
-{
-    int fila = boton_seleccionado / 5;
-    int col  = boton_seleccionado % 5;
-
-    if (fila < 5)
-        fila++;
-    else
-        fila = 0;
-
-    boton_seleccionado =
-        fila * 5 + col;
-}
-
-
-void mover_izquierda(void)
-{
-    int fila = boton_seleccionado / 5;
-    int col  = boton_seleccionado % 5;
-
-    if (col > 0)
-        col--;
-    else
-        col = 4;
-
-    boton_seleccionado =
-        fila * 5 + col;
-}
-
-
-void mover_derecha(void)
-{
-    int fila = boton_seleccionado / 5;
-    int col  = boton_seleccionado % 5;
-
-    if (col < 4)
-        col++;
-    else
-        col = 0;
-
-    boton_seleccionado =
-        fila * 5 + col;
-}
-/* =========================================================
    MAIN
    ========================================================= */
 
 int main(void)
 {
-    /*
-       -----------------------------------------------------
-       VIDEO
-       -----------------------------------------------------
-    */
+    touchPosition touch;
+
+    u32 keys;
+
+
+    /* =====================================================
+       VIDEO PRINCIPAL
+       ===================================================== */
 
     videoSetMode(MODE_0_2D);
 
     videoSetModeSub(MODE_0_2D);
 
 
-    vramSetBankA(VRAM_A_MAIN_BG);
+    /* =====================================================
+       VRAM
+       ===================================================== */
 
-    vramSetBankC(VRAM_C_SUB_BG);
+    /*
+       Pantalla superior.
+    */
+
+    vramSetBankA(
+        VRAM_A_MAIN_BG
+    );
 
 
     /*
-       -----------------------------------------------------
-       PANTALLA SUPERIOR
-       -----------------------------------------------------
+       Pantalla inferior:
+       C = fondos de pantalla.
+       D = sprites.
     */
+
+    vramSetBankC(
+        VRAM_C_SUB_BG
+    );
+
+    vramSetBankD(
+        VRAM_D_SUB_SPRITE
+    );
+
+
+    /* =====================================================
+       CONSOLA SUPERIOR
+       ===================================================== */
 
     consoleInit(
         &topScreen,
@@ -1030,15 +1607,13 @@ int main(void)
     );
 
 
-    /*
-       -----------------------------------------------------
-       PANTALLA INFERIOR
-       -----------------------------------------------------
-    */
+    /* =====================================================
+       CONSOLA INFERIOR
+       ===================================================== */
 
     consoleInit(
         &bottomScreen,
-        3,
+        0,
         BgType_Text4bpp,
         BgSize_T_256x256,
         31,
@@ -1048,13 +1623,18 @@ int main(void)
     );
 
 
-    /*
-       -----------------------------------------------------
+    /* =====================================================
        ESTADO INICIAL
-       -----------------------------------------------------
-    */
+       ===================================================== */
 
     expresion[0] = '\0';
+
+    resultado[0] = '\0';
+
+    strcpy(
+        resultado,
+        "0"
+    );
 
     cursor_expr = 0;
 
@@ -1063,33 +1643,47 @@ int main(void)
     error_calculo = 0;
 
     /*
-       Empieza seleccionado el 7.
+       Seleccionamos el 7.
+       Índice 10:
+       fila 2, columna 0.
     */
 
     boton_seleccionado = 10;
 
-    strcpy(resultado, "0");
+
+    /* =====================================================
+       SPRITES
+       ===================================================== */
+
+    if (!inicializar_sprites())
+    {
+        consoleSelect(&topScreen);
+
+        consoleClear();
+
+        printf("\n");
+        printf(" ERROR DE MEMORIA\n");
+        printf("\n");
+        printf(" No se pudieron crear\n");
+        printf(" los botones graficos.\n");
+
+        while (1)
+        {
+            swiWaitForVBlank();
+        }
+    }
 
 
-    actualizar();
+    /* =====================================================
+       PRIMER DIBUJO
+       ===================================================== */
 
-    dibujar_teclado();
-
-
-    /*
-       -----------------------------------------------------
-       TOUCH
-       -----------------------------------------------------
-    */
-
-    touchPosition touch;
+    actualizar_interfaz();
 
 
-    /*
-       -----------------------------------------------------
+    /* =====================================================
        BUCLE PRINCIPAL
-       -----------------------------------------------------
-    */
+       ===================================================== */
 
     while (1)
     {
@@ -1097,110 +1691,12 @@ int main(void)
 
         scanKeys();
 
-        u32 keys = keysDown();
+        keys = keysDown();
 
 
-        /* ================================================
-           CRUCETA ARRIBA
-           ================================================ */
-
-        if (keys & KEY_UP)
-        {
-            mover_arriba();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           CRUCETA ABAJO
-           ================================================ */
-
-        if (keys & KEY_DOWN)
-        {
-            mover_abajo();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           CRUCETA IZQUIERDA
-           ================================================ */
-
-        if (keys & KEY_LEFT)
-        {
-            mover_izquierda();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           CRUCETA DERECHA
-           ================================================ */
-
-        if (keys & KEY_RIGHT)
-        {
-            mover_derecha();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           START = PULSAR BOTON SELECCIONADO
-           ================================================ */
-
-        if (keys & KEY_START)
-        {
-            procesar_boton(
-                boton_seleccionado
-            );
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           A = CALCULAR
-           ================================================ */
-
-        if (keys & KEY_A)
-        {
-            calcular();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           B = BORRAR
-           ================================================ */
-
-        if (keys & KEY_B)
-        {
-            borrar();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           X = AC
-           ================================================ */
-
-        if (keys & KEY_X)
-        {
-            limpiar();
-
-            dibujar_teclado();
-        }
-
-
-        /* ================================================
-           SELECT = SALIR
-           ================================================ */
+        /* =================================================
+           SALIR
+           ================================================= */
 
         if (keys & KEY_SELECT)
         {
@@ -1208,14 +1704,107 @@ int main(void)
         }
 
 
-        /* ================================================
+        /* =================================================
+           CRUCETA ARRIBA
+           ================================================= */
+
+        if (keys & KEY_UP)
+        {
+            mover_arriba();
+        }
+
+
+        /* =================================================
+           CRUCETA ABAJO
+           ================================================= */
+
+        if (keys & KEY_DOWN)
+        {
+            mover_abajo();
+        }
+
+
+        /* =================================================
+           CRUCETA IZQUIERDA
+           ================================================= */
+
+        if (keys & KEY_LEFT)
+        {
+            mover_izquierda();
+        }
+
+
+        /* =================================================
+           CRUCETA DERECHA
+           ================================================= */
+
+        if (keys & KEY_RIGHT)
+        {
+            mover_derecha();
+        }
+
+
+        /* =================================================
+           START
+           ================================================= */
+
+        if (keys & KEY_START)
+        {
+            pulsar_seleccionado();
+        }
+
+
+        /* =================================================
+           A
+           ================================================= */
+
+        if (keys & KEY_A)
+        {
+            pulsar_seleccionado();
+        }
+
+
+        /* =================================================
+           B = BORRAR
+           ================================================= */
+
+        if (keys & KEY_B)
+        {
+            borrar();
+
+            actualizar_sprites();
+        }
+
+
+        /* =================================================
+           X = AC
+           ================================================= */
+
+        if (keys & KEY_X)
+        {
+            limpiar();
+
+            actualizar_sprites();
+        }
+
+
+        /* =================================================
            TOUCH
-           ================================================ */
+           ================================================= */
 
         if (keys & KEY_TOUCH)
         {
             touchRead(&touch);
 
+
+            /*
+               AQUÍ está la diferencia importante:
+
+               detectar_boton() utiliza el centro y radio
+               del círculo REAL.
+
+               Ya no utiliza la posición del texto.
+            */
 
             int indice =
                 detectar_boton(
@@ -1227,20 +1816,41 @@ int main(void)
             if (indice >= 0)
             {
                 /*
-                   Al tocar un botón también se mueve
-                   el selector a ese botón.
+                   Al tocar un círculo también lo
+                   seleccionamos con la cruceta.
                 */
 
-                boton_seleccionado = indice;
+                boton_seleccionado =
+                    indice;
 
+
+                actualizar_sprites();
+
+
+                /*
+                   Después ejecutamos el botón.
+                */
 
                 procesar_boton(indice);
 
 
-                dibujar_teclado();
+                actualizar_sprites();
             }
         }
     }
+
+
+    /* =====================================================
+       LIMPIEZA
+       ===================================================== */
+
+    liberar_sprites();
+
+    oamClear(
+        &oamSub,
+        0,
+        128
+    );
 
 
     return 0;
